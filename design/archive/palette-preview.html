@@ -1,0 +1,67 @@
+<!doctype html><meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 28px; background: #e9e5dc; font-family: "Microsoft JhengHei", sans-serif; color: #333; }
+  h1 { margin: 0 0 4px; font-size: 22px; } p.sub { margin: 0 0 18px; color: #6a645a; font-size: 14px; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; max-width: 1180px; }
+  .panel { background: #fff; padding: 18px; border: 1px solid #d8d2c4; }
+  .panel h2 { margin: 0 0 12px; font-size: 17px; }
+  .sws { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
+  .sw { display: flex; flex-direction: column; font-size: 12px; gap: 1px; }
+  .sw i { height: 42px; border: 1px solid rgba(0,0,0,.14); margin-bottom: 3px; }
+  .sw span { color: #6a645a; } .sw small { color: #8a8478; }
+  table { border-collapse: collapse; font-size: 12.5px; width: 100%; }
+  td { padding: 4px 6px; border-top: 1px solid #eee; }
+  td i { display: inline-block; padding: 2px 8px; font-style: normal; font-weight: bold; border: 1px solid rgba(0,0,0,.1); }
+  .ok { color: #1f7a3f; } .warn { color: #b3261e; font-weight: bold; }
+  .mocks { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; max-width: 1180px; margin-top: 24px; }
+  .mock h3 { margin: 0 0 8px; font-size: 15px; color: #555; }
+  .mock { background: transparent; }
+  .phone { background: var(--paper); color: var(--ink); padding: 14px; border: 1px solid rgba(0,0,0,.15); max-width: 520px; }
+  .head { display: flex; align-items: center; gap: 10px; } .head b { font-size: 28px; }
+  .year { color: var(--pencil); } .nav { font-size: 24px; color: var(--pencil); }
+  .today { margin-left: auto; color: var(--pencil); }
+  .req { margin: 10px 0; padding-top: 10px; border-top: 1px solid var(--rule); color: var(--pencil); }
+  .req u { color: var(--ink); font-weight: bold; text-decoration-color: var(--sky); text-underline-offset: 4px; text-decoration-thickness: 3px; padding: 0 8px; }
+  .grid { display: grid; grid-template-columns: repeat(7, 1fr); background: var(--sheet); border-radius: 8px; overflow: hidden; }
+  .cell { min-height: 76px; padding: 4px; border-bottom: 1px dashed var(--rule); border-right: 1px dashed var(--rule); font-size: 12px; display: flex; flex-direction: column; gap: 2px; }
+  .cell em { font-style: normal; color: var(--pencil); } .cell strong { color: var(--time); line-height: 1.15; }
+  .ring { display: inline-block; min-width: 20px; text-align: center; border: 2px solid var(--sky); border-radius: 50%; color: var(--ink); font-weight: bold; background: var(--sky-soft); }
+  .badge { font-size: 10px; padding: 1px 4px; border-radius: 4px; align-self: flex-start; }
+  .sum { display: flex; justify-content: flex-end; gap: 14px; padding: 8px 6px 0; color: var(--pencil); } .sum b { color: var(--ink); }
+  button { margin: 12px 8px 0 0; padding: 8px 18px; border: 0; background: var(--ink); color: var(--paper); font: inherit; }
+  button.ghost { background: transparent; color: var(--pencil); }
+</style>
+<h1>工時貓色系提案</h1>
+<p class="sub">主色取自圖示：天藍 #bad3f5、奶油 #fdf1e0、輪廓深褐 #452b33、月曆紅 #f27262、腮紅粉 #faa5a1。下方數字是文字與底色的對比度（WCAG，一般文字要 4.5 以上）。</p>
+<div class="cols">
+  <div class="panel"><h2>淺色模式</h2><div class="sws"><div class="sw"><i style="background:#f3f7fd"></i><b>paper</b><span>頁面底</span><small>#f3f7fd</small></div><div class="sw"><i style="background:#fffdf8"></i><b>sheet</b><span>行事曆紙張</span><small>#fffdf8</small></div><div class="sw"><i style="background:#d6e3f6"></i><b>rule</b><span>分隔線</span><small>#d6e3f6</small></div><div class="sw"><i style="background:#452b33"></i><b>ink</b><span>主文字／主按鈕</span><small>#452b33</small></div><div class="sw"><i style="background:#7a6169"></i><b>pencil</b><span>次要文字</span><small>#7a6169</small></div><div class="sw"><i style="background:#bad3f5"></i><b>sky</b><span>品牌色（今天、選取）</span><small>#bad3f5</small></div><div class="sw"><i style="background:#e4edfb"></i><b>sky-soft</b><span>懸停底色</span><small>#e4edfb</small></div><div class="sw"><i style="background:#f27262"></i><b>coral</b><span>強調色（色塊）</span><small>#f27262</small></div><div class="sw"><i style="background:#b9352d"></i><b>time</b><span>紅色時間文字</span><small>#b9352d</small></div><div class="sw"><i style="background:#fde2df"></i><b>holiday</b><span>國定假日底</span><small>#fde2df</small></div><div class="sw"><i style="background:#ffe8cf"></i><b>off</b><span>例假休假底</span><small>#ffe8cf</small></div></div><table><tr><td>主文字 / 紙張</td><td><i style="background:#fffdf8;color:#452b33">Aa 9.5</i></td><td>12.5</td><td class="ok">AAA</td></tr><tr><td>次要文字 / 紙張</td><td><i style="background:#fffdf8;color:#7a6169">Aa 9.5</i></td><td>5.5</td><td class="ok">AA</td></tr><tr><td>次要文字 / 頁面底</td><td><i style="background:#f3f7fd;color:#7a6169">Aa 9.5</i></td><td>5.2</td><td class="ok">AA</td></tr><tr><td>紅色時間 / 紙張</td><td><i style="background:#fffdf8;color:#b9352d">Aa 9.5</i></td><td>5.7</td><td class="ok">AA</td></tr><tr><td>紅色時間 / 國定假日底</td><td><i style="background:#fde2df;color:#b9352d">Aa 9.5</i></td><td>4.7</td><td class="ok">AA</td></tr><tr><td>主按鈕文字 / 主按鈕</td><td><i style="background:#452b33;color:#fffdf8">Aa 9.5</i></td><td>12.5</td><td class="ok">AAA</td></tr></table></div>
+  <div class="panel"><h2>深色模式</h2><div class="sws"><div class="sw"><i style="background:#201820"></i><b>paper</b><span>頁面底</span><small>#201820</small></div><div class="sw"><i style="background:#2b2129"></i><b>sheet</b><span>行事曆紙張</span><small>#2b2129</small></div><div class="sw"><i style="background:#4a3a45"></i><b>rule</b><span>分隔線</span><small>#4a3a45</small></div><div class="sw"><i style="background:#fdf1e0"></i><b>ink</b><span>主文字／主按鈕</span><small>#fdf1e0</small></div><div class="sw"><i style="background:#c2aeb6"></i><b>pencil</b><span>次要文字</span><small>#c2aeb6</small></div><div class="sw"><i style="background:#8fb4e8"></i><b>sky</b><span>品牌色（今天、選取）</span><small>#8fb4e8</small></div><div class="sw"><i style="background:#3a3550"></i><b>sky-soft</b><span>懸停底色</span><small>#3a3550</small></div><div class="sw"><i style="background:#ff8a7c"></i><b>coral</b><span>強調色（色塊）</span><small>#ff8a7c</small></div><div class="sw"><i style="background:#ff9a8d"></i><b>time</b><span>紅色時間文字</span><small>#ff9a8d</small></div><div class="sw"><i style="background:#4a2a30"></i><b>holiday</b><span>國定假日底</span><small>#4a2a30</small></div><div class="sw"><i style="background:#4a3326"></i><b>off</b><span>例假休假底</span><small>#4a3326</small></div></div><table><tr><td>主文字 / 紙張</td><td><i style="background:#2b2129;color:#fdf1e0">Aa 9.5</i></td><td>13.9</td><td class="ok">AAA</td></tr><tr><td>次要文字 / 紙張</td><td><i style="background:#2b2129;color:#c2aeb6">Aa 9.5</i></td><td>7.4</td><td class="ok">AAA</td></tr><tr><td>紅色時間 / 紙張</td><td><i style="background:#2b2129;color:#ff9a8d">Aa 9.5</i></td><td>7.6</td><td class="ok">AAA</td></tr><tr><td>紅色時間 / 國定假日底</td><td><i style="background:#4a2a30;color:#ff9a8d">Aa 9.5</i></td><td>6.2</td><td class="ok">AA</td></tr><tr><td>主按鈕文字 / 主按鈕</td><td><i style="background:#fdf1e0;color:#201820">Aa 9.5</i></td><td>15.5</td><td class="ok">AAA</td></tr></table></div>
+</div>
+<div class="mocks"><section class="mock" style="--paper:#f3f7fd;--sheet:#fffdf8;--rule:#d6e3f6;--ink:#452b33;--pencil:#7a6169;--sky:#bad3f5;--sky-soft:#e4edfb;--coral:#f27262;--time:#b9352d;--holiday:#fde2df;--off:#ffe8cf">
+  <h3>淺色模式：套用範例</h3>
+  <div class="phone">
+    <div class="head"><span class="nav">‹</span><b>11 月</b><span class="year">2026 年 ⌄</span><span class="nav">›</span><span class="today">今天</span></div>
+    <div class="req">應上班時數 <u>176</u> 小時</div>
+    <div class="grid">
+      <div class="cell" style="background:#ffe8cf"><em>1</em><span class="badge" style="background:#ffe8cf;color:#452b33">例假</span></div><div class="cell" style="background:"><em><span class="ring">2</span></em><strong>09<br>18</strong></div><div class="cell" style="background:"><em>3</em><strong>9.25<br>21.75</strong></div>
+      <div class="cell" style="background:#fde2df"><em>4</em><span class="badge" style="background:#fde2df;color:#b9352d">國定假日</span></div><div class="cell" style="background:"><em>5</em><strong>10<br>19.5</strong></div><div class="cell" style="background:"><em>6</em></div><div class="cell" style="background:"><em>7</em><strong>13<br>21.5</strong></div>
+    </div>
+    <div class="sum"><span>週合計加總</span><b>85.25h</b></div>
+    <div class="sum"><span>加班時數</span><b>-90.75h</b></div>
+    <button>儲存</button><button class="ghost">取消</button>
+  </div>
+</section><section class="mock" style="--paper:#201820;--sheet:#2b2129;--rule:#4a3a45;--ink:#fdf1e0;--pencil:#c2aeb6;--sky:#8fb4e8;--sky-soft:#3a3550;--coral:#ff8a7c;--time:#ff9a8d;--holiday:#4a2a30;--off:#4a3326">
+  <h3>深色模式：套用範例</h3>
+  <div class="phone">
+    <div class="head"><span class="nav">‹</span><b>11 月</b><span class="year">2026 年 ⌄</span><span class="nav">›</span><span class="today">今天</span></div>
+    <div class="req">應上班時數 <u>176</u> 小時</div>
+    <div class="grid">
+      <div class="cell" style="background:#4a3326"><em>1</em><span class="badge" style="background:#4a3326;color:#fdf1e0">例假</span></div><div class="cell" style="background:"><em><span class="ring">2</span></em><strong>09<br>18</strong></div><div class="cell" style="background:"><em>3</em><strong>9.25<br>21.75</strong></div>
+      <div class="cell" style="background:#4a2a30"><em>4</em><span class="badge" style="background:#4a2a30;color:#ff9a8d">國定假日</span></div><div class="cell" style="background:"><em>5</em><strong>10<br>19.5</strong></div><div class="cell" style="background:"><em>6</em></div><div class="cell" style="background:"><em>7</em><strong>13<br>21.5</strong></div>
+    </div>
+    <div class="sum"><span>週合計加總</span><b>85.25h</b></div>
+    <div class="sum"><span>加班時數</span><b>-90.75h</b></div>
+    <button>儲存</button><button class="ghost">取消</button>
+  </div>
+</section></div>

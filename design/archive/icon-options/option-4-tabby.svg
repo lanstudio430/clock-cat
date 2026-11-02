@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#f08a3a"/>
+  <g fill="#fff4df" stroke="#fff4df" stroke-width="14" stroke-linejoin="round">
+    <polygon points="118,160 134,80 226,146"/><polygon points="394,160 378,80 286,146"/>
+  </g>
+  <rect x="88" y="140" width="336" height="294" rx="48" fill="#fff4df"/>
+  <path d="M88,238 V188 a48,48 0 0 1 48,-48 H376 a48,48 0 0 1 48,48 V238 Z" fill="#c4551b"/>
+  <g fill="#fff4df"><ellipse cx="190" cy="190" rx="22" ry="24"/><ellipse cx="322" cy="190" rx="22" ry="24"/></g>
+  <g fill="#3a2a1c"><ellipse cx="190" cy="190" rx="7" ry="19"/><ellipse cx="322" cy="190" rx="7" ry="19"/></g>
+  <polygon points="244,208 268,208 256,222" fill="#fff4df"/>
+  <rect x="132" y="266" width="64" height="64" rx="16" fill="#f3cfa3"/><rect x="224" y="266" width="64" height="64" rx="16" fill="#d93a2b"/><rect x="316" y="266" width="64" height="64" rx="16" fill="#f3cfa3"/><rect x="132" y="350" width="64" height="64" rx="16" fill="#f3cfa3"/><rect x="224" y="350" width="64" height="64" rx="16" fill="#f3cfa3"/><rect x="316" y="350" width="64" height="64" rx="16" fill="#f3cfa3"/>
+</svg>

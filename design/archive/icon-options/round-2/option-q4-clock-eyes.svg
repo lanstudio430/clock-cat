@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#fbe3a0"/>
+  <g fill="#fff3df" stroke="#4a3340" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"><polygon points="74,212 96,82 184,147.0"/><polygon points="438,212 416,82 328,147.0"/></g>
+  <g fill="#f7b2b0"><polygon points="98,188 106,122 160,162.0"/><polygon points="414,188 406,122 352,162.0"/></g>
+  <ellipse cx="256" cy="268" rx="190" ry="148" fill="#fff3df" stroke="#4a3340" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="172" cy="256" r="58" fill="#fffdf6" stroke="#4a3340" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+  <g stroke="#4a3340" stroke-width="4" stroke-linecap="round"><line x1="172.0" y1="216.0" x2="172.0" y2="206.0"/><line x1="212.0" y1="256.0" x2="222.0" y2="256.0"/><line x1="172.0" y1="296.0" x2="172.0" y2="306.0"/><line x1="132.0" y1="256.0" x2="122.0" y2="256.0"/></g>
+  <g stroke-linecap="round" stroke-width="9">
+    <line x1="172" y1="256" x2="150.7" y2="241.1" stroke="#4a3340"/>
+    <line x1="172" y1="256" x2="203.1" y2="234.2" stroke="#e0605a"/>
+  </g>
+  <circle cx="172" cy="256" r="6.8" fill="#e0605a"/><circle cx="340" cy="256" r="58" fill="#fffdf6" stroke="#4a3340" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+  <g stroke="#4a3340" stroke-width="4" stroke-linecap="round"><line x1="340.0" y1="216.0" x2="340.0" y2="206.0"/><line x1="380.0" y1="256.0" x2="390.0" y2="256.0"/><line x1="340.0" y1="296.0" x2="340.0" y2="306.0"/><line x1="300.0" y1="256.0" x2="290.0" y2="256.0"/></g>
+  <g stroke-linecap="round" stroke-width="9">
+    <line x1="340" y1="256" x2="318.7" y2="241.1" stroke="#4a3340"/>
+    <line x1="340" y1="256" x2="371.1" y2="234.2" stroke="#e0605a"/>
+  </g>
+  <circle cx="340" cy="256" r="6.8" fill="#e0605a"/>
+  <g fill="#f7a4a4" opacity=".85"><ellipse cx="112" cy="330" rx="28" ry="16"/><ellipse cx="400" cy="330" rx="28" ry="16"/></g>
+  <polygon points="247,308 265,308 256,317" fill="#e8837f"/>
+  <path d="M256,317 q-11,14 -24,5 M256,317 q11,14 24,5" fill="none" stroke="#4a3340" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>
+</svg>

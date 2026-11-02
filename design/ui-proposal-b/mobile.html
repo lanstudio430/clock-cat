@@ -1,0 +1,280 @@
+<!doctype html><meta charset="utf-8"><title>B 手機版</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&family=Iansui&display=swap">
+<link rel="stylesheet" href="../../node_modules/@fortawesome/fontawesome-free/css/fontawesome.min.css"><link rel="stylesheet" href="../../node_modules/@fortawesome/fontawesome-free/css/solid.min.css"><link rel="stylesheet" href="../../node_modules/@fortawesome/fontawesome-free/css/regular.min.css">
+<style>
+:root {
+  --paper: #fff8ec; --dot: rgba(69, 43, 51, .12);
+  --card: #fffdf8; --ink: #452b33; --pencil: #7a6169; --faint: rgba(69, 43, 51, .24);
+  --sky: #bad3f5; --sky-soft: #e4edfb; --sky-deep: #6f9be0;
+  --coral: #f27262; --time: #b9352d; --pink: #faa5a1; --butter: #ffe9a8; --mint: #bfe6cf; --green: #3fae6b;
+  --blue-text: #3f6fb8; --green-text: #237a48; --brown-text: #9a520f;
+  --off: #ffe7cc; --off-tag: #ffd2a4; --holiday: #fde2df; --holiday-tag: #fbbdb8;
+}
+* { box-sizing: border-box; }
+body { margin: 0; padding: 28px; background: #e6dccb; font-family: Nunito, Iansui, "Microsoft JhengHei", sans-serif; color: var(--ink); font-synthesis: none; }
+.stage { display: flex; gap: 28px; justify-content: center; align-items: flex-start; flex-wrap: wrap; }
+.cap { text-align: center; font-size: 15px; color: #6b5d50; margin: 10px 0 0; }
+.hw { font-family: Nunito, Iansui, sans-serif; font-weight: 400; }  /* 數字用 Nunito，中文自動落到芫荽 */
+.dotted { background-color: var(--paper); background-image: radial-gradient(var(--dot) 1.3px, transparent 1.5px); background-size: 18px 18px; }
+
+/* ---- 手機外框 ---- */
+.phone { width: 390px; height: 844px; border-radius: 46px; overflow: hidden; position: relative;
+  box-shadow: 0 0 0 10px #2c2530, 0 24px 50px rgba(40, 30, 60, .35); }
+.status { height: 44px; display: flex; justify-content: space-between; align-items: center; padding: 6px 28px 0; font-weight: 800; font-size: 15px; }
+.screen { padding: 0 16px; }
+
+/* ---- 貼紙基本款：粗輪廓 + 硬陰影 ---- */
+.stk { position: relative; background: var(--card); border: 2.5px solid var(--ink); border-radius: 20px; box-shadow: 3px 3px 0 var(--ink); }
+.tape { position: absolute; width: 76px; height: 22px; z-index: 2;
+  background: repeating-linear-gradient(45deg, rgba(255, 255, 255, .45) 0 5px, transparent 5px 10px), rgba(250, 165, 161, .85); }
+.tape.sky { background: repeating-linear-gradient(45deg, rgba(255, 255, 255, .45) 0 5px, transparent 5px 10px), rgba(127, 168, 230, .7); }
+.tape.butter { background: repeating-linear-gradient(45deg, rgba(255, 255, 255, .5) 0 5px, transparent 5px 10px), rgba(255, 214, 102, .8); }
+
+/* ---- 頂部 ---- */
+.top { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+.logo { width: 40px; height: 40px; border-radius: 50%; border: 2.5px solid var(--ink); background: var(--sky) url(../mascot-transparent.png) no-repeat 50% 0 / 128%; flex: none; }
+.top h1 { margin: 0; font-size: 23px; }
+.right { margin-left: auto; display: flex; gap: 7px; align-items: center; }
+.yr { height: 44px; padding: 0 10px; border: 2px solid var(--ink); border-radius: 12px; background: var(--card); font-weight: 800; display: inline-flex; align-items: center; gap: 6px; font-size: 15px; }
+.yr i { font-size: 10px; }
+.ib { width: 44px; height: 44px; border: 2px solid var(--ink); border-radius: 12px; background: var(--card); box-shadow: 2px 2px 0 var(--ink); display: grid; place-items: center; font-size: 15px; }
+.ib.today { background: var(--butter); }
+
+/* ---- 月份標籤列 ---- */
+.months { display: flex; gap: 8px; margin: 12px -16px 0; padding: 6px 16px 10px; overflow: hidden; align-items: center; justify-content: center;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 30px, #000 calc(100% - 30px), transparent); }
+.m { flex: none; height: 44px; min-width: 50px; padding: 0 8px; border-radius: 13px; border: 2px dashed var(--faint); display: grid; place-items: center; color: var(--pencil); font-size: 16px; }
+.m.on { height: 50px; min-width: 70px; background: var(--sky); border: 2.5px solid var(--ink); color: var(--ink); box-shadow: 3px 3px 0 var(--ink); transform: rotate(-3deg); font-size: 21px; }
+.m b { font-family: Nunito; font-weight: 900; }
+
+/* ---- 本月卡：圓環 + 應上班時數 ---- */
+.dash { display: flex; gap: 14px; padding: 16px 14px 14px; margin-top: 10px; align-items: center; }
+.ring { position: relative; width: 112px; height: 112px; flex: none; }
+.ring svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+.ring .face { position: absolute; left: 18px; top: 18px; width: 76px; height: 76px; border-radius: 50%; border: 2.5px solid var(--ink); background: var(--sky-soft) url(../mascot-transparent.png) no-repeat 50% 0 / 122%; }
+.ring .pct { position: absolute; right: -6px; bottom: -2px; background: var(--card); border: 2px solid var(--ink); border-radius: 10px; padding: 0 6px; font-weight: 900; font-size: 13px; transform: rotate(6deg); }
+.info { flex: 1; min-width: 0; }
+.info label { font-size: 15px; color: var(--pencil); display: flex; gap: 6px; align-items: center; }
+.req { display: inline-flex; align-items: baseline; gap: 6px; margin: 4px 0 6px; padding: 2px 10px; border: 2px solid var(--ink); border-radius: 12px; background: var(--card); }
+.req b { font-weight: 900; font-size: 26px; }
+.req span { font-size: 15px; color: var(--pencil); }
+.req i { font-size: 12px; color: var(--pencil); margin-left: 4px; }
+.req .ph { color: var(--faint); }
+.stat { font-size: 14px; color: var(--pencil); }
+.stat b { color: var(--ink); font-weight: 900; }
+.note { margin-top: 6px; font-size: 14px; display: flex; gap: 6px; align-items: center; }
+.note i { color: var(--coral); }
+.stamp { position: absolute; right: 12px; top: -12px; transform: rotate(7deg); border: 2px dashed currentColor; border-radius: 10px; padding: 1px 9px; font-size: 13px; background: var(--card); display: inline-flex; gap: 5px; align-items: center; z-index: 3; }
+.stamp.ok { color: var(--green-text); } .stamp.sync { color: var(--blue-text); } .stamp.off { color: var(--brown-text); background: #fff3e2; } .stamp.bad { color: var(--time); background: var(--holiday); }
+.dash.done { background: #f3fbf6; }
+
+/* ---- 日曆 ---- */
+.cal { margin-top: 16px; padding: 10px 6px 6px; }
+.grid { display: grid; grid-template-columns: repeat(7, 1fr) 56px; }
+.wd { text-align: center; font-size: 15px; color: var(--pencil); padding-bottom: 4px; border-bottom: 2px solid var(--ink); }
+.wd.sat { color: var(--blue-text); } .wd.sun { color: var(--time); } .wd.sum { color: var(--ink); }
+.d { position: relative; height: 60px; padding: 3px 3px; border-right: 1.5px dashed var(--faint); border-bottom: 1.5px dashed var(--faint); min-width: 0; }
+.d.blank { background: transparent; }
+.d .n { font-weight: 800; font-size: 12px; color: var(--pencil); height: 18px; display: flex; align-items: center; }
+.d .t { margin-top: 1px; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; }
+.d .t span { font-weight: 900; font-size: 12.5px; line-height: 1.1; color: var(--time); background: linear-gradient(transparent 62%, rgba(186, 211, 245, .85) 62%); padding: 0 1px; }
+.d.today { background: rgba(186, 211, 245, .28); }
+.d.today .n span { width: 20px; height: 20px; border-radius: 50%; background: var(--sky); border: 2px solid var(--ink); color: var(--ink); display: grid; place-items: center; font-size: 11px; }
+.d.today .paw { position: absolute; right: 3px; bottom: 3px; font-size: 10px; color: var(--coral); }
+.d.off { background: var(--off); } .d.hol { background: var(--holiday); }
+.d .sticker { position: absolute; right: 3px; top: 3px; width: 17px; height: 17px; border-radius: 50%; border: 1.5px solid var(--ink); display: grid; place-items: center; font-size: 8px; }
+.d.off .sticker { background: var(--off-tag); } .d.hol .sticker { background: var(--holiday-tag); }
+.d .lbl { position: absolute; left: 4px; bottom: 6px; font-size: 12px; padding: 0 4px; border: 1.5px solid var(--ink); border-radius: 6px; transform: rotate(-5deg); }
+.d.off .lbl { background: var(--off-tag); } .d.hol .lbl { background: var(--holiday-tag); }
+.w { display: grid; place-items: center; border-bottom: 1.5px dashed var(--faint); }
+.w span { position: relative; padding: 5px 6px 4px; border: 2px solid var(--ink); border-radius: 10px; background: var(--sky); font-weight: 900; font-size: 11.5px; transform: rotate(-3deg); box-shadow: 2px 2px 0 var(--ink); white-space: nowrap; }
+.w.zero span { background: transparent; border: 2px dashed var(--faint); color: var(--pencil); box-shadow: none; transform: none; font-weight: 700; padding: 5px 7px 4px; }
+.receipt { padding: 10px 6px 4px; display: grid; gap: 4px; }
+.receipt div { display: flex; align-items: baseline; gap: 6px; font-size: 16px; }
+.receipt i { flex: 1; border-bottom: 2.5px dotted var(--faint); transform: translateY(-5px); }
+.receipt b { font-weight: 900; font-size: 19px; }
+.receipt b.plus { color: var(--green-text); }
+
+/* ---- 編輯面板 ---- */
+.dim { position: absolute; inset: 0; background: rgba(69, 43, 51, .38); }
+.blur { filter: blur(2px); }
+.sheet { position: absolute; left: 0; right: 0; bottom: 0; border-radius: 28px 28px 0 0; border: 2.5px solid var(--ink); border-bottom: 0; padding: 10px 16px 20px; }
+.sit { position: absolute; right: 26px; top: -76px; width: 84px; height: 88px; background: url(../mascot-transparent.png) no-repeat 50% 0 / 84px auto; z-index: 3; }
+.handle { width: 46px; height: 6px; border-radius: 3px; background: var(--faint); margin: 0 auto 8px; }
+.s-head { display: flex; align-items: baseline; gap: 8px; }
+.s-head h2 { margin: 0; font-size: 30px; }
+.s-head h2 b { font-family: Nunito; font-weight: 900; }
+.s-head small { font-size: 17px; color: var(--pencil); }
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.seg > span { height: 50px; border-radius: 14px; border: 2px dashed var(--faint); display: flex; flex-direction: column; justify-content: center; padding: 0 12px; font-size: 15px; }
+.seg > span small { font-family: Nunito; font-weight: 800; font-size: 13px; color: var(--pencil); }
+.seg > span.on { border: 2.5px solid var(--ink); background: var(--card); box-shadow: 3px 3px 0 var(--ink); }
+.seg > span.on small { color: var(--time); }
+.seg em { font-style: normal; font-size: 11px; background: var(--butter); border: 1.5px solid var(--ink); border-radius: 6px; padding: 0 4px; margin-left: 6px; }
+.tl { position: relative; margin: 14px 4px 0; height: 52px; }
+.tl .axis { position: absolute; left: 0; right: 0; top: 36px; border-top: 2px solid var(--ink); }
+.tl .tick { position: absolute; top: 31px; width: 2px; height: 10px; background: var(--ink); }
+.tl .tk { position: absolute; top: 40px; transform: translateX(-50%); font-size: 11px; font-weight: 800; color: var(--pencil); }
+.tl .bar { position: absolute; border: 2px solid var(--ink); border-radius: 8px; }
+.tl .plan { top: 2px; height: 12px; background: repeating-linear-gradient(-45deg, var(--sky) 0 4px, var(--card) 4px 8px); }
+.tl .act { top: 16px; height: 16px; background: var(--coral); }
+.tl .lg { position: absolute; top: 2px; font-size: 11px; color: var(--pencil); }
+.fields { display: grid; grid-template-columns: 1fr 26px 1fr; align-items: center; margin-top: 14px; }
+.fld { height: 58px; border-radius: 16px; border: 2px dashed var(--faint); padding: 4px 12px; display: flex; flex-direction: column; justify-content: center; }
+.fld small { font-size: 13px; color: var(--pencil); }
+.fld b { font-weight: 900; font-size: 24px; line-height: 1.1; }
+.fld.on { border: 2.5px solid var(--ink); background: var(--sky-soft); box-shadow: 3px 3px 0 var(--ink); }
+.fields .to { text-align: center; color: var(--pencil); }
+.hours { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; margin-top: 12px; }
+.hours span, .mins span { height: 44px; border-radius: 11px; border: 1.5px solid var(--faint); background: var(--card); display: grid; place-items: center; font-weight: 800; font-size: 15px; }
+.hours span.on, .mins span.on { border: 2.5px solid var(--ink); background: var(--butter); box-shadow: 2px 2px 0 var(--ink); font-weight: 900; }
+.mins { display: grid; grid-template-columns: repeat(4, 1fr) 1.3fr; gap: 6px; margin-top: 8px; }
+.mins .clr { border-style: dashed; color: var(--pencil); font-size: 13px; font-family: Iansui; font-weight: 400; }
+.types { display: flex; gap: 7px; margin-top: 14px; }
+.types span { height: 40px; padding: 0 11px; border-radius: 12px; border: 2px solid var(--ink); display: inline-flex; gap: 5px; align-items: center; font-size: 15px; background: var(--card); }
+.types span i { font-size: 12px; }
+.types .on { background: var(--ink); color: var(--card); box-shadow: 2px 2px 0 rgba(69, 43, 51, .45); }
+.types .t-off { background: var(--off); } .types .t-hol { background: var(--holiday); }
+.acts { display: flex; align-items: center; gap: 10px; margin-top: 16px; }
+.acts .del { height: 46px; padding: 0 14px; border-radius: 14px; border: 2px solid var(--time); color: var(--time); display: inline-flex; gap: 6px; align-items: center; font-size: 15px; }
+.acts .cancel { margin-left: auto; color: var(--pencil); font-size: 16px; padding: 0 6px; }
+.acts .save { height: 52px; padding: 0 26px; border-radius: 16px; border: 2.5px solid var(--ink); background: var(--sky); box-shadow: 3px 3px 0 var(--ink); display: inline-flex; gap: 8px; align-items: center; font-size: 19px; }
+.acts .save i { color: var(--coral); }
+
+/* ---- 桌面 ---- */
+.desk { width: 1180px; border-radius: 22px; padding: 22px 26px 26px; box-shadow: 0 20px 50px rgba(40, 30, 60, .25); }
+.desk .top { margin: 0; }
+.desk .months { margin: 0 12px; padding: 6px 10px 10px; -webkit-mask-image: none; flex: 1; justify-content: center; }
+.desk .body { display: grid; grid-template-columns: 1fr 370px; gap: 26px; margin-top: 18px; align-items: start; }
+.desk .cal { margin: 0; padding: 12px 10px 8px; }
+.desk .grid { grid-template-columns: repeat(7, 1fr) 78px; }
+.desk .d { height: 92px; padding: 7px; } .desk .d .n { font-size: 14px; } .desk .d .t span { font-size: 16px; }
+.desk .d .sticker { width: 22px; height: 22px; font-size: 10px; right: 6px; top: 6px; }
+.desk .d .lbl { font-size: 14px; left: 7px; bottom: 9px; }
+.desk .wd { font-size: 17px; padding-bottom: 6px; }
+.desk .w span { font-size: 15px; }
+.desk .receipt div { font-size: 18px; } .desk .receipt b { font-size: 22px; }
+.desk aside { display: grid; gap: 22px; }
+.desk .dash { margin: 0; flex-direction: column; align-items: stretch; text-align: left; }
+.desk .dash .ring { margin: 0 auto; width: 150px; height: 150px; }
+.desk .dash .ring .face { left: 24px; top: 24px; width: 102px; height: 102px; }
+.legend { padding: 16px; display: grid; gap: 10px; font-size: 15px; }
+.legend h3 { margin: 0; font-size: 17px; }
+.legend div { display: flex; gap: 10px; align-items: center; }
+.legend .chip { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--ink); display: grid; place-items: center; font-size: 11px; }
+
+/* ---- 狀態 ---- */
+.states { width: 1180px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+.st { border-radius: 22px; padding: 18px 16px; box-shadow: 0 10px 30px rgba(40, 30, 60, .18); }
+.st h4 { margin: 0 0 14px; font-size: 15px; color: #6b5d50; font-family: "Microsoft JhengHei", sans-serif; }
+.st .dash { margin-top: 18px; }
+.row-wrap { display: flex; flex-wrap: wrap; gap: 14px 18px; padding: 10px 4px; }
+.row-wrap .stamp { position: static; }
+.toast { display: inline-flex; gap: 8px; align-items: center; padding: 10px 16px; border: 2.5px solid var(--ink); border-radius: 16px; background: var(--butter); box-shadow: 3px 3px 0 var(--ink); font-size: 16px; transform: rotate(-2deg); }
+.toast b { font-family: Nunito; font-weight: 900; }
+.toast i { color: var(--coral); }
+.skel .d { background: transparent; }
+.skel .d i { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(-15deg); color: rgba(69, 43, 51, .12); font-size: 16px; }
+.confetti b { position: absolute; width: 9px; height: 9px; border: 1.5px solid var(--ink); border-radius: 2px; z-index: 4; }
+.sub { font-size: 13px; color: #6b5d50; margin: 12px 0 0; font-family: "Microsoft JhengHei", sans-serif; }
+
+.m.ydiv { min-width: auto; height: 28px; padding: 0 9px; border: 2px solid var(--blue-text); color: var(--blue-text); border-radius: 999px; font-weight: 900; font-size: 13px; background: var(--card); }
+.d.sel { background: var(--butter); box-shadow: inset 0 0 0 2.5px var(--ink); }
+.desk aside .panel { margin-top: 66px; }
+.panel { padding: 14px 16px 16px; }
+.panel .sit { right: 66px; top: -70px; width: 78px; height: 82px; background-size: 78px auto; }
+.panel .x { position: absolute; right: 14px; top: 14px; width: 40px; height: 40px; border: 2px solid var(--ink); border-radius: 12px; display: grid; place-items: center; background: var(--card); box-shadow: 2px 2px 0 var(--ink); }
+.panel .hours { grid-template-columns: repeat(4, 1fr); }
+.panel .s-head h2 { font-size: 28px; }
+.panel .types { flex-wrap: wrap; }
+.panel .seg > span { height: 56px; }
+.panel .seg em { display: none; }
+/* 第一次使用 */
+.hello { display: flex; flex-direction: column; align-items: center; padding-top: 10px; }
+.hello .big-cat { width: 150px; height: 158px; background: url(../mascot-transparent.png) no-repeat 50% 0 / 150px auto; }
+.bubble { position: relative; margin: 0 0 16px; padding: 10px 18px; border: 2.5px solid var(--ink); border-radius: 18px; background: var(--card); box-shadow: 3px 3px 0 var(--ink); font-size: 18px; text-align: center; line-height: 1.4; }
+.bubble::after { content: ""; position: absolute; left: 50%; bottom: -11px; width: 18px; height: 18px; background: var(--card); border-right: 2.5px solid var(--ink); border-bottom: 2.5px solid var(--ink); transform: translateX(-50%) rotate(45deg); }
+.setup { margin-top: 16px; padding: 18px 16px 16px; }
+.setup h2 { margin: 0 0 4px; font-size: 24px; }
+.setup p { margin: 0; font-size: 14px; color: var(--pencil); }
+.field { display: block; margin-top: 14px; }
+.field > span { font-size: 16px; display: flex; gap: 8px; align-items: center; }
+.field > span b { width: 24px; height: 24px; border-radius: 50%; background: var(--butter); border: 2px solid var(--ink); display: grid; place-items: center; font-size: 12px; font-weight: 900; }
+.input { margin-top: 6px; height: 48px; border: 2.5px solid var(--ink); border-radius: 14px; background: var(--card); display: flex; align-items: center; padding: 0 12px; font-size: 14px; font-weight: 700; overflow: hidden; white-space: nowrap; }
+.input.err { border-color: var(--time); background: #fff6f5; }
+.input .eye { margin-left: auto; color: var(--pencil); padding-left: 8px; }
+.err-text { margin-top: 6px; font-size: 13px; color: var(--time); display: flex; gap: 6px; align-items: baseline; line-height: 1.35; }
+.go { margin-top: 18px; height: 54px; border: 2.5px solid var(--ink); border-radius: 16px; background: var(--sky); box-shadow: 3px 3px 0 var(--ink); display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 20px; }
+.go i { color: var(--coral); }
+.fine { text-align: center; font-size: 13px; color: var(--pencil); margin-top: 12px; }
+/* 錯誤 */
+.oops { margin-top: 16px; padding: 16px 14px; display: flex; gap: 12px; align-items: center; }
+.oops .cat { position: relative; width: 76px; height: 80px; flex: none; background: url(../mascot-transparent.png) no-repeat 50% 0 / 76px auto; }
+.oops .cat i { position: absolute; right: -6px; top: 0; color: var(--sky-deep); font-size: 20px; transform: rotate(15deg); }
+.oops h3 { margin: 0; font-size: 19px; }
+.oops p { margin: 4px 0 10px; font-size: 13px; color: var(--pencil); line-height: 1.4; }
+.oops .btns { display: flex; gap: 8px; }
+.mini-btn { height: 44px; padding: 0 14px; border: 2px solid var(--ink); border-radius: 12px; background: var(--card); box-shadow: 2px 2px 0 var(--ink); display: inline-flex; gap: 6px; align-items: center; font-size: 15px; }
+.mini-btn.pri { background: var(--sky); }
+.toast.bad { background: var(--holiday); transform: rotate(-1deg); display: flex; flex-wrap: wrap; row-gap: 8px; font-size: 15px; }
+.toast.bad > span:first-of-type { white-space: nowrap; }
+.toast.bad i { color: var(--time); }
+.toast .ok-btn { margin-left: auto; padding: 2px 10px; border: 2px solid var(--ink); border-radius: 10px; background: var(--card); font-size: 14px; }
+.req.err { border-color: var(--time); background: #fff6f5; }
+.states.nine { grid-template-columns: repeat(3, 1fr); }
+</style>
+<div class="stage"><div><div class="phone dotted"><div class="status"><span>9:41</span><span><i class="fa-solid fa-signal"></i> <i class="fa-solid fa-wifi"></i> <i class="fa-solid fa-battery-full"></i></span></div>
+<div class="screen"><div class="top"><div class="logo"></div><h1 class="hw">工時貓</h1><div class="right"><span class="yr"><b>2026</b><span class="hw">年</span><i class="fa-solid fa-chevron-down"></i></span>
+    <span class="ib today" title="今天"><i class="fa-regular fa-calendar-check"></i></span>
+    <span class="ib"><i class="fa-solid fa-gear"></i></span></div></div>
+<div class="months"><span class="m hw"><span><b>8</b>月</span></span><span class="m hw"><span><b>9</b>月</span></span><span class="m hw"><span><b>10</b>月</span></span><span class="m hw on"><span><b>11</b>月</span></span><span class="m hw"><span><b>12</b>月</span></span><span class="m ydiv">2027</span><span class="m hw"><span><b>1</b>月</span></span><span class="m hw"><span><b>2</b>月</span></span></div><div class="dash stk"><span class="tape" style="left:16px;top:-12px;transform:rotate(-7deg)"></span><span class="stamp ok hw"><i class="fa-solid fa-check"></i>已同步</span>
+  <div class="ring"><svg viewBox="0 0 112 112">
+  <circle cx="56" cy="56" r="47" fill="none" stroke="var(--sky-soft)" stroke-width="12"/>
+  <circle cx="56" cy="56" r="54" fill="none" stroke="var(--ink)" stroke-width="2.5"/>
+  <circle cx="56" cy="56" r="40" fill="none" stroke="var(--ink)" stroke-width="2.5"/>
+  <circle cx="56" cy="56" r="47" fill="none" stroke="var(--coral)" stroke-width="12" stroke-linecap="round" stroke-dasharray="141.7 295.3"/>
+</svg><div class="face"></div><span class="pct">48%</span></div>
+  <div class="info"><label class="hw"><i class="fa-solid fa-pen-nib"></i>應上班時數</label>
+    <div class="req"><b>176</b><span class="hw">小時</span><i class="fa-solid fa-pen"></i></div>
+    <div class="stat hw">已排 <b>85.25h</b></div>
+    <div class="note hw"><i class="fa-solid fa-paw"></i>還差 90.75 小時，加油喵</div></div></div><div class="cal stk"><span class="tape sky" style="left:50%;top:-12px;transform:translateX(-50%) rotate(2deg)"></span>
+<div class="grid"><div class="wd hw ">一</div><div class="wd hw ">二</div><div class="wd hw ">三</div><div class="wd hw ">四</div><div class="wd hw ">五</div><div class="wd hw sat">六</div><div class="wd hw sun">日</div><div class="wd hw sum">合計</div><div class="d blank"></div><div class="d blank"></div><div class="d blank"></div><div class="d blank"></div><div class="d blank"></div><div class="d blank"></div><div class="d off"><div class="n">1</div><span class="sticker"><i class="fa-solid fa-moon"></i></span><span class="lbl hw">例假</span></div><div class="w zero"><span>0h</span></div><div class="d today"><div class="n"><span>2</span></div><div class="t"><span>9.5</span><span>21.5</span></div><i class="fa-solid fa-paw paw"></i></div><div class="d"><div class="n">3</div><div class="t"><span>9.25</span><span>21.75</span></div></div><div class="d"><div class="n">4</div><div class="t"><span>9.5</span><span>18</span></div></div><div class="d"><div class="n">5</div><div class="t"><span>13</span><span>21.5</span></div></div><div class="d"><div class="n">6</div><div class="t"><span>09</span><span>21.5</span></div></div><div class="d off"><div class="n">7</div><span class="sticker"><i class="fa-solid fa-mug-hot"></i></span><span class="lbl hw">休假</span></div><div class="d off"><div class="n">8</div><span class="sticker"><i class="fa-solid fa-moon"></i></span><span class="lbl hw">例假</span></div><div class="w"><span>54h</span></div><div class="d"><div class="n">9</div><div class="t"><span>09</span><span>18</span></div></div><div class="d hol"><div class="n">10</div><div class="t"><span>10</span><span>19.75</span></div><span class="sticker"><i class="fa-solid fa-flag"></i></span></div><div class="d"><div class="n">11</div></div><div class="d"><div class="n">12</div></div><div class="d"><div class="n">13</div></div><div class="d"><div class="n">14</div></div><div class="d"><div class="n">15</div></div><div class="w"><span>18.75h</span></div><div class="d"><div class="n">16</div></div><div class="d hol"><div class="n">17</div><span class="sticker"><i class="fa-solid fa-flag"></i></span><span class="lbl hw">國定</span></div><div class="d"><div class="n">18</div></div><div class="d"><div class="n">19</div></div><div class="d"><div class="n">20</div></div><div class="d"><div class="n">21</div></div><div class="d"><div class="n">22</div></div><div class="w zero"><span>0h</span></div><div class="d"><div class="n">23</div></div><div class="d"><div class="n">24</div></div><div class="d"><div class="n">25</div></div><div class="d"><div class="n">26</div></div><div class="d"><div class="n">27</div></div><div class="d"><div class="n">28</div></div><div class="d"><div class="n">29</div></div><div class="w zero"><span>0h</span></div><div class="d"><div class="n">30</div><div class="t"><span>09</span><span>21.5</span></div></div><div class="d blank"></div><div class="d blank"></div><div class="d blank"></div><div class="d blank"></div><div class="d blank"></div><div class="d blank"></div><div class="w"><span>12.5h</span></div></div><div class="receipt hw">
+  <div><span>週合計加總</span><i></i><b>85.25h</b></div>
+  <div><span>加班時數</span><i></i><b class="">-90.75h</b></div>
+</div></div></div></div><p class="cap">① 月曆首頁</p></div>
+<div><div class="phone dotted"><div class="status"><span>9:41</span><span><i class="fa-solid fa-signal"></i> <i class="fa-solid fa-wifi"></i> <i class="fa-solid fa-battery-full"></i></span></div>
+<div class="screen blur"><div class="top"><div class="logo"></div><h1 class="hw">工時貓</h1><div class="right"><span class="yr"><b>2026</b><span class="hw">年</span><i class="fa-solid fa-chevron-down"></i></span>
+    <span class="ib today" title="今天"><i class="fa-regular fa-calendar-check"></i></span>
+    <span class="ib"><i class="fa-solid fa-gear"></i></span></div></div>
+<div class="months"><span class="m hw"><span><b>8</b>月</span></span><span class="m hw"><span><b>9</b>月</span></span><span class="m hw"><span><b>10</b>月</span></span><span class="m hw on"><span><b>11</b>月</span></span><span class="m hw"><span><b>12</b>月</span></span><span class="m ydiv">2027</span><span class="m hw"><span><b>1</b>月</span></span><span class="m hw"><span><b>2</b>月</span></span></div><div class="dash stk"><span class="tape" style="left:16px;top:-12px;transform:rotate(-7deg)"></span><span class="stamp ok hw"><i class="fa-solid fa-check"></i>已同步</span>
+  <div class="ring"><svg viewBox="0 0 112 112">
+  <circle cx="56" cy="56" r="47" fill="none" stroke="var(--sky-soft)" stroke-width="12"/>
+  <circle cx="56" cy="56" r="54" fill="none" stroke="var(--ink)" stroke-width="2.5"/>
+  <circle cx="56" cy="56" r="40" fill="none" stroke="var(--ink)" stroke-width="2.5"/>
+  <circle cx="56" cy="56" r="47" fill="none" stroke="var(--coral)" stroke-width="12" stroke-linecap="round" stroke-dasharray="141.7 295.3"/>
+</svg><div class="face"></div><span class="pct">48%</span></div>
+  <div class="info"><label class="hw"><i class="fa-solid fa-pen-nib"></i>應上班時數</label>
+    <div class="req"><b>176</b><span class="hw">小時</span><i class="fa-solid fa-pen"></i></div>
+    <div class="stat hw">已排 <b>85.25h</b></div>
+    <div class="note hw"><i class="fa-solid fa-paw"></i>還差 90.75 小時，加油喵</div></div></div><div class="cal stk"><span class="tape sky" style="left:50%;top:-12px;transform:translateX(-50%) rotate(2deg)"></span>
+<div class="grid"><div class="wd hw ">一</div><div class="wd hw ">二</div><div class="wd hw ">三</div><div class="wd hw ">四</div><div class="wd hw ">五</div><div class="wd hw sat">六</div><div class="wd hw sun">日</div><div class="wd hw sum">合計</div><div class="d blank"></div><div class="d blank"></div><div class="d blank"></div><div class="d blank"></div><div class="d blank"></div><div class="d blank"></div><div class="d off"><div class="n">1</div><span class="sticker"><i class="fa-solid fa-moon"></i></span><span class="lbl hw">例假</span></div><div class="w zero"><span>0h</span></div><div class="d today"><div class="n"><span>2</span></div><div class="t"><span>9.5</span><span>21.5</span></div><i class="fa-solid fa-paw paw"></i></div><div class="d"><div class="n">3</div><div class="t"><span>9.25</span><span>21.75</span></div></div><div class="d"><div class="n">4</div><div class="t"><span>9.5</span><span>18</span></div></div><div class="d"><div class="n">5</div><div class="t"><span>13</span><span>21.5</span></div></div><div class="d"><div class="n">6</div><div class="t"><span>09</span><span>21.5</span></div></div><div class="d off"><div class="n">7</div><span class="sticker"><i class="fa-solid fa-mug-hot"></i></span><span class="lbl hw">休假</span></div><div class="d off"><div class="n">8</div><span class="sticker"><i class="fa-solid fa-moon"></i></span><span class="lbl hw">例假</span></div><div class="w"><span>54h</span></div><div class="d"><div class="n">9</div><div class="t"><span>09</span><span>18</span></div></div><div class="d hol"><div class="n">10</div><div class="t"><span>10</span><span>19.75</span></div><span class="sticker"><i class="fa-solid fa-flag"></i></span></div><div class="d"><div class="n">11</div></div><div class="d"><div class="n">12</div></div><div class="d"><div class="n">13</div></div><div class="d"><div class="n">14</div></div><div class="d"><div class="n">15</div></div><div class="w"><span>18.75h</span></div><div class="d"><div class="n">16</div></div><div class="d hol"><div class="n">17</div><span class="sticker"><i class="fa-solid fa-flag"></i></span><span class="lbl hw">國定</span></div><div class="d"><div class="n">18</div></div><div class="d"><div class="n">19</div></div><div class="d"><div class="n">20</div></div><div class="d"><div class="n">21</div></div><div class="d"><div class="n">22</div></div><div class="w zero"><span>0h</span></div><div class="d"><div class="n">23</div></div><div class="d"><div class="n">24</div></div><div class="d"><div class="n">25</div></div><div class="d"><div class="n">26</div></div><div class="d"><div class="n">27</div></div><div class="d"><div class="n">28</div></div><div class="d"><div class="n">29</div></div><div class="w zero"><span>0h</span></div><div class="d"><div class="n">30</div><div class="t"><span>09</span><span>21.5</span></div></div><div class="d blank"></div><div class="d blank"></div><div class="d blank"></div><div class="d blank"></div><div class="d blank"></div><div class="d blank"></div><div class="w"><span>12.5h</span></div></div><div class="receipt hw">
+  <div><span>週合計加總</span><i></i><b>85.25h</b></div>
+  <div><span>加班時數</span><i></i><b class="">-90.75h</b></div>
+</div></div></div><div class="dim"></div>
+<div class="sheet dotted"><div class="sit"></div><div class="handle"></div>
+  <div class="s-head"><h2 class="hw"><b>11</b>月<b>3</b>日</h2><small class="hw">星期二</small></div>
+  <div class="seg">
+    <span class="hw"><span><i class="fa-regular fa-clock"></i> 原定</span><small>09 → 18</small></span>
+    <span class="hw on"><span><i class="fa-solid fa-pencil"></i> 實際<em>以這組為準</em></span><small>9.25 → 21.75・12.5h</small></span>
+  </div>
+  <div class="tl">
+    <div class="bar plan" style="left:18.75%;width:56.25%"></div>
+    <div class="bar act" style="left:20.31%;width:78.12%"></div>
+    <div class="axis"></div><span class="tick" style="left:calc(0.00% - 1px)"></span><span class="tk" style="left:0.00%">6</span><span class="tick" style="left:calc(18.75% - 1px)"></span><span class="tk" style="left:18.75%">9</span><span class="tick" style="left:calc(37.50% - 1px)"></span><span class="tk" style="left:37.50%">12</span><span class="tick" style="left:calc(56.25% - 1px)"></span><span class="tk" style="left:56.25%">15</span><span class="tick" style="left:calc(75.00% - 1px)"></span><span class="tk" style="left:75.00%">18</span><span class="tick" style="left:calc(93.75% - 1px)"></span><span class="tk" style="left:93.75%">21</span>
+  </div>
+  <div class="fields"><div class="fld on"><small class="hw">上班</small><b>9.25</b></div><div class="to"><i class="fa-solid fa-arrow-right"></i></div><div class="fld"><small class="hw">下班</small><b>21.75</b></div></div>
+  <div class="hours"><span class="">06</span><span class="">07</span><span class="">08</span><span class="on">09</span><span class="">10</span><span class="">11</span><span class="">12</span><span class="">13</span><span class="">14</span><span class="">15</span><span class="">16</span><span class="">17</span><span class="">18</span><span class="">19</span><span class="">20</span><span class="">21</span></div>
+  <div class="mins"><span>0</span><span class="on">.25</span><span>.5</span><span>.75</span><span class="clr">清除這組</span></div>
+  <div class="types hw"><span class="on">無</span><span class="t-off"><i class="fa-solid fa-moon"></i>例假</span><span class="t-off"><i class="fa-solid fa-mug-hot"></i>休假</span><span class="t-hol"><i class="fa-solid fa-flag"></i>國定假日</span></div>
+  <div class="acts hw"><span class="del"><i class="fa-regular fa-trash-can"></i>刪除</span><span class="cancel">取消</span><span class="save"><i class="fa-solid fa-paw"></i>儲存</span></div>
+</div></div><p class="cap">② 點日期：底部面板（點選時間，不用下拉選單）</p></div></div>

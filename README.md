@@ -13,18 +13,20 @@
 - 每週右側顯示該週上班時數，最下方顯示週合計加總，只計算當月
 - 可填寫每個月的應上班時數，填寫後顯示加班時數（週合計加總減應上班時數）
 - 儲存時先更新畫面，再於背景同步到試算表；離線時變更會留在手機上，恢復連線後自動送出
+- 介面是「貼紙手帳」風格，貓咪會依本月進度說話；設計規格見 [design/README.md](design/README.md)
 
 ## 專案結構
 
 | 路徑 | 用途 |
 | --- | --- |
 | `apps-script/Code.gs` | 後端：驗證密鑰、讀寫試算表，以 JSON 回應 |
-| `docs/` | 前端網站，GitHub Pages 直接發布這個資料夾 |
-| `docs/index.html`、`docs/app.js` | 畫面與邏輯 |
-| `docs/styles.css` | 由 Tailwind 編譯出來的樣式（要一起提交） |
-| `docs/sw.js`、`docs/manifest.webmanifest`、`docs/icons/` | PWA：離線外殼、安裝資訊、圖示 |
-| `docs/vendor/fontawesome/` | Font Awesome 圖示字型（自行託管） |
-| `src/input.css`、`tailwind.config.js` | Tailwind 設定與入口 |
+| `web/` | 前端原始碼：Svelte 5 + TypeScript，用 Vite 建置 |
+| `web/src/lib/` | 計算規則、離線快取與同步佇列、API |
+| `web/src/components/` | 畫面元件（頂列、月份標籤、本月卡、日曆、編輯面板、連線設定…） |
+| `docs/` | **建置結果**，GitHub Pages 直接發布這個資料夾；不要手動修改 |
+| `design/` | 圖示原圖、設計稿與設計規格 |
+| `scripts/` | 建置工具：芫荽字型裁切、產生 Service Worker |
+| `tests/unit/`、`tests/e2e/` | 單元測試（Vitest）與瀏覽器流程測試（Playwright） |
 
 ## 安裝
 
@@ -72,21 +74,31 @@ Android 的 Chrome 與電腦的 Chrome、Edge 也能安裝：網址列旁會出�
 
 - 每個月份的資料會快取在裝置上，開啟時先顯示快取，再於背景更新；一次會取回前後各一個月，切換月份不用等。
 - 儲存、刪除、修改應上班時數時，畫面立刻更新，變更先排進佇列再依序送出。
-- 沒有網路時，變更留在佇列裡，畫面上方會顯示「N 筆變更尚未同步」，恢復連線或點「重試」後送出。
-- 伺服器拒絕某筆變更時（例如資料不合規則），該筆會被丟棄並顯示原因，畫面回到試算表裡的內容。
+- 本月卡右上角的印章顯示同步狀態：已同步、同步中、離線・N 筆待同步、顯示上次的資料，或連線設定的問題。
+- 沒有網路時，變更留在佇列裡，恢復連線、回到 App 或點印章重試時送出。
+- 伺服器拒絕某筆變更時（例如資料不合規則），該筆會被丟棄，畫面底部的紅色提示說明原因，畫面回到試算表裡的內容。
 - 試算表永遠是準的：同步完成後，畫面以試算表內容為準。
 - 換成另一份試算表（更改網址）時，舊的快取與尚未送出的變更會清掉。
 
 ## 開發
 
+需要 Node.js 22 以上；瀏覽器測試會用電腦上已安裝的 Google Chrome。
+
 ```
 npm install
-npm run build
+npm run dev        # 本機開發：http://localhost:5173
+npm run build      # 建置到 docs/
+npm run check      # 型別檢查
+npm test           # 單元測試（含 Code.gs 與字型檢查）
+npm run test:e2e   # 瀏覽器流程測試（手機與桌面版面）
+npm run fonts      # 介面中文字有增減時，重新裁切芫荽
 ```
 
-- 改了 `docs/index.html` 或 `docs/app.js` 裡的樣式類別後，執行 `npm run build` 重新產生 `docs/styles.css`，並把它一起提交。
-- 本機預覽需要用網頁伺服器開啟 `docs/`（例如 `npx serve docs`），直接開檔案時 Service Worker 不會啟用。
-- `docs/sw.js` 對同源檔案採「先用快取、背景更新」，改了程式碼不用改版號；只有新增或移除外殼檔案時，才需要更新 `SHELL` 清單並調整 `CACHE` 版號。
+- **發布：** 執行 `npm run build`，把 `docs/` 跟原始碼一起提交、推送，GitHub Pages 就會更新。`docs/sw.js` 也是建置產生的，版本號跟著內容變，使用者下次開啟就會拿到新版。
+- **字型：** 芫荽只保留介面用到的字。改了介面文字後執行 `npm run fonts`；忘記的話，單元測試會列出漏掉的字。中文註解請寫在獨立的一行，整行註解不會被算進字型。
+- **本機開發的資料：** `npm run dev` 一樣要在連線設定貼上 Apps Script 網址與密鑰，資料直接讀寫你的試算表。
+- **測試怎麼跑後端：** 單元與瀏覽器測試都在 Node 裡執行真正的 `Code.gs`，搭配記憶體裡的假試算表，不會碰到你的資料。
+- **授權：** 芫荽與 Nunito 是 SIL Open Font License（授權檔在 `web/public/fonts/`）；Font Awesome 圖示是 CC BY 4.0，授權說明保留在每個 SVG 裡。
 
 ## 時間格式
 
@@ -121,9 +133,15 @@ npm run build
 
 直接編輯工作表時請維持相同格式，日期必須是 `yyyy-MM-dd`、月份必須是 `yyyy-MM`，否則行事曆讀不到該列。
 
-## 從 v1.0.0 升級
+## 升級
 
-v1.0.0 是直接由 Apps Script 提供網頁的版本，v1.1.0 起改成 GitHub Pages 加 Apps Script API，功能與畫面不變。升級時：
+### 從 v1.1.0 升級
+
+前端換成 Svelte 與新介面，`Code.gs` 沒有改，Apps Script 不用重新部署。推送新的 `docs/` 之後，手機上原本的連線設定、快取和待同步變更都會沿用。
+
+### 從 v1.0.0 升級
+
+v1.0.0 是直接由 Apps Script 提供網頁的版本。升級時：
 
 1. 沿用原本的試算表，把 `Code.gs` 換成新版，並刪掉專案裡的 `Index` 檔案。
 2. 照上面的步驟執行 `setupApiKey`，並把部署的存取權限改成「任何人」，重新部署新版本。

@@ -1,0 +1,16 @@
+{
+  "name": "工時貓 Clock Cat",
+  "short_name": "工時貓",
+  "description": "月行事曆工時記錄：原定與實際上下班、週合計與加班時數",
+  "lang": "zh-Hant",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#fff8ec",
+  "theme_color": "#fff8ec",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

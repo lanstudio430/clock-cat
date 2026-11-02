@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#bcd0f2"/>
+  <g fill="#fff3df" stroke="#4a3340" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"><polygon points="102,180 124,52 212,115.7"/><polygon points="410,180 388,52 300,115.7"/></g>
+  <g fill="#f7b2b0"><polygon points="126,156 134,92 188,130.4"/><polygon points="386,156 378,92 324,130.4"/></g>
+  <g fill="#4a3340" stroke="#4a3340" stroke-width="16" stroke-linejoin="round"><ellipse cx="256" cy="196" rx="150" ry="118"/><ellipse cx="256" cy="344" rx="142" ry="106"/></g>
+  <g fill="#fff3df"><ellipse cx="256" cy="196" rx="150" ry="118"/><ellipse cx="256" cy="344" rx="142" ry="106"/></g>
+  <g fill="#fff3df" stroke="#4a3340" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"><ellipse cx="196" cy="446" rx="38" ry="24"/><ellipse cx="316" cy="446" rx="38" ry="24"/></g>
+  <g fill="#fff3df"><ellipse cx="256" cy="196" rx="150" ry="118"/><ellipse cx="256" cy="344" rx="142" ry="106"/></g>
+  <ellipse cx="192" cy="186" rx="22" ry="30" fill="#4a3340"/>
+  <circle cx="184.1" cy="174.6" r="9.2" fill="#fff"/>
+  <circle cx="199.5" cy="198.0" r="4.4" fill="#fff"/><ellipse cx="320" cy="186" rx="22" ry="30" fill="#4a3340"/>
+  <circle cx="312.1" cy="174.6" r="9.2" fill="#fff"/>
+  <circle cx="327.5" cy="198.0" r="4.4" fill="#fff"/>
+  <g fill="#f7a4a4" opacity=".85"><ellipse cx="140" cy="226" rx="26" ry="15"/><ellipse cx="372" cy="226" rx="26" ry="15"/></g>
+  <polygon points="247,208 265,208 256,217" fill="#e8837f"/>
+  <path d="M256,217 q-11,14 -24,5 M256,217 q11,14 24,5" fill="none" stroke="#4a3340" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="256" cy="346" r="64" fill="#fffdf6" stroke="#4a3340" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+  <g stroke="#4a3340" stroke-width="4" stroke-linecap="round"><line x1="256.0" y1="302.0" x2="256.0" y2="292.0"/><line x1="300.0" y1="346.0" x2="310.0" y2="346.0"/><line x1="256.0" y1="390.0" x2="256.0" y2="400.0"/><line x1="212.0" y1="346.0" x2="202.0" y2="346.0"/></g>
+  <g stroke-linecap="round" stroke-width="8">
+    <line x1="256" y1="346" x2="233.5" y2="333.0" stroke="#4a3340"/>
+    <line x1="256" y1="346" x2="290.6" y2="326.0" stroke="#e0605a"/>
+  </g>
+  <circle cx="256" cy="346" r="6.0" fill="#e0605a"/>
+</svg>

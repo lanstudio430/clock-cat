@@ -14,6 +14,8 @@ export interface Net {
   requests: Record<string, unknown>[];
   tamper: ((body: Record<string, any>) => void) | null;
   notDeployed: boolean;
+  /** 模擬還沒重新部署的舊後端：不認得薪資設定的動作 */
+  legacyBackend: boolean;
 }
 
 type Pair = [number, number | null] | null;
@@ -130,7 +132,7 @@ export const test = base.extend<Fixtures>({
   },
 
   net: async ({ page, backend }, use) => {
-    const net: Net = { offline: false, delays: [], requests: [], tamper: null, notDeployed: false };
+    const net: Net = { offline: false, delays: [], requests: [], tamper: null, notDeployed: false, legacyBackend: false };
     await page.route('https://script.google.com/**', async (route) => {
       const delay = net.delays.length ? net.delays.shift()! : 5;
       await new Promise((resolve) => setTimeout(resolve, delay));
@@ -144,6 +146,10 @@ export const test = base.extend<Fixtures>({
           net.tamper = null;
         }
         const headers = { 'access-control-allow-origin': '*' };
+        if (net.legacyBackend && ['getPayData', 'savePayCatalog', 'savePayMonth'].includes(body.action)) {
+          const unsupported = { ok: false, code: 'bad_request', error: `不支援的操作：${body.action}` };
+          return await route.fulfill({ status: 200, contentType: 'application/json', headers, body: JSON.stringify(unsupported) });
+        }
         if (net.notDeployed) {
           return await route.fulfill({ status: 200, contentType: 'text/html', headers, body: '<html>Sign in</html>' });
         }

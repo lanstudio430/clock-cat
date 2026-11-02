@@ -1,12 +1,12 @@
 // 由 scripts/service-worker.ts 在建置時填入版本與檔案清單，請勿直接修改 docs/sw.js。
 // 頁面先用快取開啟、背景再更新；有雜湊檔名的檔案內容不會變，直接用快取。
 // Apps Script 的 API 請求是跨網域的，不經過這裡。
-const CACHE = 'clock-cat-b6695e1983d8';
+const CACHE = 'clock-cat-0fe7e9746458';
 const SHELL = [
   "./",
-  "assets/iansui-BLPBKIoV.woff2",
-  "assets/index-D88c4xqT.js",
-  "assets/index-DpwVobMl.css",
+  "assets/iansui-CK-ixr83.woff2",
+  "assets/index-CANTTOwT.js",
+  "assets/index-CYELtmau.css",
   "assets/mascot-COiunRr0.webp",
   "assets/nunito-latin-BzFMHfZw.woff2",
   "icons/apple-touch-icon.png",

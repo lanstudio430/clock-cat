@@ -11,6 +11,8 @@ export class ApiError extends Error {
     readonly kind: ErrorKind,
     message: string,
     readonly short: string,
+    /** 伺服器回傳的錯誤代碼，例如 bad_request、unauthorized；連不上時沒有 */
+    readonly code?: string,
   ) {
     super(message);
   }
@@ -54,7 +56,7 @@ export async function callApi<T>(settings: Settings, action: string, params: Rec
   }
   if (!payload.ok) {
     const [kind, short] = SERVER_ERRORS[payload.code ?? ''] ?? ['config', '連線設定有誤'];
-    throw new ApiError(kind, payload.error || short, short);
+    throw new ApiError(kind, payload.error || short, short, payload.code);
   }
   return payload.data as T;
 }

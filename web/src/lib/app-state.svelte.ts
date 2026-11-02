@@ -1,8 +1,12 @@
 import { ApiError, callApi } from './api';
 import { buildWeeks, formatNumber, goalMet, monthKeyOf, monthTotal, shiftMonthKey, validateEntry, workedHours } from './calc';
 import { applyOp, describeOp, fromServer, opMonth, type ServerMonth } from './ops';
+import {
+  computePay, defaultCatalog, normalizeCatalog, normalizeMonthPay, normalizePayData, resolveMonthPay, validateCatalog,
+  validateMonthPay,
+} from './pay';
 import { KEYS, store } from './storage';
-import type { Entry, MonthData, Op, Settings } from './types';
+import type { Entry, MonthData, MonthPay, Op, PayCatalog, Settings } from './types';
 
 export const API_URL_PATTERN = /^https:\/\/script\.google\.com\/.+\/exec$/;
 export const MAX_REQUIRED_HOURS = 744;
@@ -31,6 +35,11 @@ function readQueue(): Op[] {
   return Array.isArray(saved) ? saved : [];
 }
 
+/** 薪資設定的變更：整份取代，重送沒關係 */
+const isPayOp = (op: Op) => op.type === 'savePayCatalog' || op.type === 'savePayMonth';
+const DEFAULT_CATALOG = defaultCatalog();
+const monthName = (monthKey: string) => `${Number(monthKey.slice(5))} 月`;
+
 const asApiError = (error: unknown) =>
   error instanceof ApiError ? error : new ApiError('offline', String(error), '連不上');
 
@@ -50,6 +59,15 @@ export class AppState {
   syncing = $state(false);
   editing = $state<string | null>(null);
   settingsOpen = $state(false);
+  /** 正在編輯哪個月的薪資設定；沒有打開時是 null */
+  payDialogMonth = $state<string | null>(null);
+  categoriesOpen = $state(false);
+  /** 每個月各自的薪資設定（key 是 yyyy-MM）。以試算表為準，本機只是快取 */
+  payMonths = $state<Record<string, MonthPay>>(normalizePayData(store.get(KEYS.pay)).months);
+  /** 使用者自訂過的常用類別；還沒自訂過是 null，使用內建的預設 */
+  customCatalog = $state<PayCatalog | null>(normalizePayData(store.get(KEYS.pay)).catalog);
+  /** 後端還沒更新（不認得薪資設定的動作）時，薪資設定只存在這台裝置 */
+  payBackend = $state<'unknown' | 'ok' | 'unsupported'>('unknown');
   toast = $state<Toast | null>(null);
   celebrate = $state(0);
 
@@ -80,6 +98,18 @@ export class AppState {
   }
   get total() {
     return monthTotal(this.weeks);
+  }
+  get catalog(): PayCatalog {
+    return this.customCatalog ?? DEFAULT_CATALOG;
+  }
+  /** 這個月用哪一份薪資設定：自己的、沿用前面月份的，或還沒設定（null） */
+  get payResolved() {
+    return resolveMonthPay(this.payMonths, this.monthKey);
+  }
+  /** 這個月的薪資試算；還沒設定薪資或月份還沒載入時是 null */
+  get pay() {
+    const resolved = this.payResolved;
+    return resolved && this.ready ? computePay(resolved.pay, this.entries, this.requiredHours) : null;
   }
   get isConfigured() {
     return Boolean(this.settings?.url && this.settings?.key);
@@ -191,12 +221,48 @@ export class AppState {
       this.#putMonth(key, data);
     }
     this.#lastRefresh = Date.now();
+    await this.#refreshPay();
+  }
+
+  /** 以試算表的薪資設定為準；失敗不影響月曆，下次再試。 */
+  async #refreshPay() {
+    if (this.payBackend === 'unsupported' || this.queue.some(isPayOp)) return;
+    const syncedBefore = this.#syncedOps;
+    try {
+      const raw = await callApi<unknown>(this.settings!, 'getPayData', {});
+      this.payBackend = 'ok';
+      // 抓取期間本機又改了設定，這份是舊的，不要蓋掉
+      if (syncedBefore !== this.#syncedOps || this.queue.some(isPayOp)) return;
+
+      const remote = normalizePayData(raw);
+      const remoteEmpty = remote.catalog === null && Object.keys(remote.months).length === 0;
+      const localHas = this.customCatalog !== null || Object.keys(this.payMonths).length > 0;
+      if (remoteEmpty && localHas) {
+        // 試算表還沒有薪資設定（例如先在本機設定、之後才連線），把本機的送上去
+        if (this.customCatalog) this.queue.push({ type: 'savePayCatalog', catalog: $state.snapshot(this.customCatalog) });
+        for (const [month, pay] of Object.entries(this.payMonths)) {
+          this.queue.push({ type: 'savePayMonth', month, pay: $state.snapshot(pay) });
+        }
+        this.#persistQueue();
+        void this.flushQueue();
+        return;
+      }
+      this.customCatalog = remote.catalog;
+      this.payMonths = remote.months;
+      this.#persistPay();
+    } catch (error) {
+      if (error instanceof ApiError && error.code === 'bad_request') this.payBackend = 'unsupported';
+    }
+  }
+
+  #persistPay() {
+    store.set(KEYS.pay, { catalog: $state.snapshot(this.customCatalog), months: $state.snapshot(this.payMonths) });
   }
 
   // ---- 變更與同步 ----
 
-  #commit(op: Op) {
-    const key = opMonth(op);
+  #commit(op: Exclude<Op, { type: 'savePayCatalog' | 'savePayMonth' }>) {
+    const key = opMonth(op)!;
     this.#ensure(key);
     const data = this.months[key];
     const metBefore = key === this.monthKey && goalMet(this.total, this.requiredHours);
@@ -229,6 +295,14 @@ export class AppState {
         await this.#send(op);
       } catch (error) {
         const apiError = asApiError(error);
+        if (isPayOp(op) && apiError.code === 'bad_request') {
+          // 後端還沒更新到有薪資設定的版本：設定留在這台裝置，別卡住其他變更
+          this.queue.shift();
+          this.#persistQueue();
+          this.payBackend = 'unsupported';
+          this.showToast('後端還沒更新，薪資設定只存在這台裝置。請到 Apps Script 重新部署新版本', 'bad');
+          continue;
+        }
         if (apiError.kind !== 'rejected') {
           // 變更留在佇列，之後再試
           this.syncError = apiError;
@@ -252,6 +326,8 @@ export class AppState {
     const settings = this.settings!;
     if (op.type === 'saveEntry') return callApi(settings, 'saveEntry', { entry: op.entry });
     if (op.type === 'deleteEntry') return callApi(settings, 'deleteEntry', { date: op.date });
+    if (op.type === 'savePayCatalog') return callApi(settings, 'savePayCatalog', { catalog: op.catalog });
+    if (op.type === 'savePayMonth') return callApi(settings, 'savePayMonth', { month: op.month, pay: op.pay });
     return callApi(settings, 'saveRequiredHours', { month: op.month, value: op.value });
   }
 
@@ -302,6 +378,72 @@ export class AppState {
     return '';
   }
 
+  // ---- 薪資設定 ----
+
+  /** 打開目前這個月的薪資設定 */
+  openPayDialog() {
+    this.payDialogMonth = this.monthKey;
+  }
+
+  closePayDialog() {
+    this.payDialogMonth = null;
+  }
+
+  openCategories() {
+    this.categoriesOpen = true;
+  }
+
+  closeCategories() {
+    this.categoriesOpen = false;
+  }
+
+  /** 儲存某個月的薪資設定。從這個月起生效，不會動到更早的月份。不合規則時回傳錯誤訊息。 */
+  savePayMonth(draft: MonthPay): string {
+    const message = validateMonthPay(draft);
+    if (message) return message;
+    const month = this.payDialogMonth ?? this.monthKey;
+    const pay = normalizeMonthPay(JSON.parse(JSON.stringify(draft)))!;
+    this.payMonths[month] = pay;
+    this.#persistPay();
+    this.payDialogMonth = null;
+    this.#syncPay({ type: 'savePayMonth', month, pay }, `${monthName(month)}薪資設定已儲存`);
+    return '';
+  }
+
+  /** 清除這個月自己的設定，改回沿用前面的月份 */
+  resetPayMonth() {
+    const month = this.payDialogMonth ?? this.monthKey;
+    delete this.payMonths[month];
+    this.#persistPay();
+    this.payDialogMonth = null;
+    this.#syncPay({ type: 'savePayMonth', month, pay: null }, `${monthName(month)}的設定已清除`);
+  }
+
+  /** 儲存常用類別。不合規則時回傳錯誤訊息。 */
+  saveCatalog(draft: PayCatalog): string {
+    const message = validateCatalog(draft);
+    if (message) return message;
+    const catalog = normalizeCatalog(JSON.parse(JSON.stringify(draft)))!;
+    this.customCatalog = catalog;
+    this.#persistPay();
+    this.categoriesOpen = false;
+    this.#syncPay({ type: 'savePayCatalog', catalog }, '常用類別已儲存');
+    return '';
+  }
+
+  /** 薪資設定先存在本機，再排進佇列送到試算表 */
+  #syncPay(op: Op, text: string) {
+    if (this.payBackend === 'unsupported') {
+      // 已經知道後端還沒更新，不用再送一個注定失敗的請求
+      this.showToast(`${text}，但後端還沒更新，只存在這台裝置`, 'ok');
+      return;
+    }
+    this.queue.push(op);
+    this.#persistQueue();
+    this.showToast(text, 'ok');
+    void this.flushQueue();
+  }
+
   // ---- 連線設定 ----
 
   openSettings() {
@@ -320,7 +462,13 @@ export class AppState {
     if (!API_URL_PATTERN.test(url)) return '網址需要是 https://script.google.com/… 結尾為 /exec 的部署網址';
     if (!key) return '請輸入密鑰';
 
-    // 換成另一份試算表時，舊的快取與尚未送出的變更都不能帶過去
+    // 換成另一份試算表時，舊的快取與尚未送出的變更都不能帶過去，薪資設定也是各自的
+    if (this.settings && this.settings.url !== url) {
+      this.payMonths = {};
+      this.customCatalog = null;
+      this.payBackend = 'unknown';
+      store.remove(KEYS.pay);
+    }
     if (!this.settings || this.settings.url !== url) {
       this.queue = [];
       this.#persistQueue();

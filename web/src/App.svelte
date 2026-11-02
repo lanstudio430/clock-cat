@@ -2,11 +2,14 @@
   import { onMount } from 'svelte';
   import { app } from './lib/app-state.svelte';
   import Calendar from './components/Calendar.svelte';
+  import CategoriesDialog from './components/CategoriesDialog.svelte';
   import Editor from './components/Editor.svelte';
   import ErrorCard from './components/ErrorCard.svelte';
   import Legend from './components/Legend.svelte';
   import MonthCard from './components/MonthCard.svelte';
   import MonthStrip from './components/MonthStrip.svelte';
+  import PayMonthDialog from './components/PayMonthDialog.svelte';
+  import SalaryCard from './components/SalaryCard.svelte';
   import Settings from './components/Settings.svelte';
   import Toast from './components/Toast.svelte';
   import TopBar from './components/TopBar.svelte';
@@ -51,6 +54,7 @@
         {#if app.showErrorCard}<ErrorCard />{:else}<MonthCard />{/if}
       {/if}
       <Calendar />
+      <SalaryCard />
     </div>
     {#if desktop}
       <aside>
@@ -69,6 +73,8 @@
   {#key app.editing}<Editor mode="sheet" />{/key}
 {/if}
 <Settings />
+<PayMonthDialog />
+<CategoriesDialog />
 <Toast />
 
 <style>

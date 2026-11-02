@@ -8,12 +8,27 @@ var LATEST_TIME = 21.75;
 var MAX_MONTH_HOURS = 744;
 var MAX_MONTHS_PER_REQUEST = 6;
 var API_KEY_PROPERTY = 'API_KEY';
+var PAY_SHEET = '薪資設定';
+var PAY_HEADERS = ['項目', '內容'];
+var PAY_CATALOG_KEY = 'catalog';
+var PAY_MONTH_PREFIX = 'month:';
+var JOB_TYPES = ['fulltime', 'parttime'];
+var ROUNDINGS = ['none', 'round', 'ceil'];
+var ITEM_SIDES = ['addition', 'deduction'];
+var ITEM_MODES = ['amount', 'percent'];
+var MAX_MONEY = 10000000;
+var MAX_PAY_ITEMS = 20;
+var MAX_CATEGORIES = 40;
+var MAX_NAME_LENGTH = 20;
 
 var ACTIONS = {
   getMonths: function (request) { return getMonths(request.months); },
   saveEntry: function (request) { return saveEntry(request.entry); },
   deleteEntry: function (request) { deleteEntry(request.date); return null; },
-  saveRequiredHours: function (request) { return saveRequiredHours(request.month, request.value); }
+  saveRequiredHours: function (request) { return saveRequiredHours(request.month, request.value); },
+  getPayData: function () { return getPayData(); },
+  savePayCatalog: function (request) { return savePayCatalog(request.catalog); },
+  savePayMonth: function (request) { return savePayMonth(request.month, request.pay); }
 };
 
 /** 連線測試：不需要密鑰，也不回傳任何資料。 */
@@ -115,6 +130,54 @@ function rowToEntry_(row) {
     actualEnd: parseHours_(row[4]),
     dayType: row[5]
   };
+}
+
+/** 取得所有薪資設定：{catalog: 常用類別或 null, months: {yyyy-MM: 該月設定}}。 */
+function getPayData() {
+  var result = { catalog: null, months: {} };
+  readRows_(getSheet_(PAY_SHEET, PAY_HEADERS)).forEach(function (row) {
+    var value = parseJsonCell_(row[1]);
+    if (value === null) return;
+    if (row[0] === PAY_CATALOG_KEY) {
+      result.catalog = value;
+    } else if (row[0].indexOf(PAY_MONTH_PREFIX) === 0) {
+      result.months[row[0].slice(PAY_MONTH_PREFIX.length)] = value;
+    }
+  });
+  return result;
+}
+
+/** 儲存常用類別（整份取代），回傳整理後的內容。 */
+function savePayCatalog(catalog) {
+  var clean = normalizeCatalog_(catalog);
+  withLock_(function () {
+    upsertRow_(getSheet_(PAY_SHEET, PAY_HEADERS), [PAY_CATALOG_KEY, JSON.stringify(clean)]);
+  });
+  return clean;
+}
+
+/** 儲存某個月的薪資設定（整份取代）；pay 是 null 代表清除這個月自己的設定。 */
+function savePayMonth(month, pay) {
+  assertMonth_(month);
+  var clean = pay === null ? null : normalizeMonthPay_(pay);
+  withLock_(function () {
+    var sheet = getSheet_(PAY_SHEET, PAY_HEADERS);
+    var key = PAY_MONTH_PREFIX + month;
+    if (clean === null) {
+      deleteRowByKey_(sheet, key);
+    } else {
+      upsertRow_(sheet, [key, JSON.stringify(clean)]);
+    }
+  });
+  return clean;
+}
+
+function parseJsonCell_(text) {
+  try {
+    return text ? JSON.parse(text) : null;
+  } catch (error) {
+    return null;
+  }
 }
 
 /** 新增或更新某一天的紀錄，回傳整理後的內容。 */
@@ -287,6 +350,96 @@ function assertDate_(date) {
   if (!parsed || parsed.toISOString().slice(0, 10) !== date) {
     throw new Error('日期不正確：' + date);
   }
+}
+
+/** 規則與前端 web/src/lib/pay.ts 的 validateMonthPay 相同；格式不對就拒絕，不猜測修正。 */
+function normalizeMonthPay_(pay) {
+  if (!pay || typeof pay !== 'object' || pay.version !== 1) throw new Error('薪資設定格式不正確');
+  if (JOB_TYPES.indexOf(pay.jobType) === -1) throw new Error('身分不正確');
+  if (ROUNDINGS.indexOf(pay.rounding) === -1) throw new Error('時薪進位方式不正確');
+  return {
+    version: 1,
+    jobType: pay.jobType,
+    baseSalary: money_(pay.baseSalary, '本薪'),
+    hourlyWage: money_(pay.hourlyWage, '時薪'),
+    rounding: pay.rounding,
+    payRounding: payRounding_(pay.payRounding),
+    additions: items_(pay.additions, '加項'),
+    deductions: items_(pay.deductions, '扣項')
+  };
+}
+
+/** 金額的進位方式；舊版沒有這個欄位時視為四捨五入（與以前的算法相同） */
+function payRounding_(value) {
+  if (value === undefined) return 'round';
+  if (ROUNDINGS.indexOf(value) === -1) throw new Error('金額進位方式不正確');
+  return value;
+}
+
+function normalizeCatalog_(catalog) {
+  if (!catalog || typeof catalog !== 'object' || catalog.version !== 1) throw new Error('常用類別格式不正確');
+  if (!Array.isArray(catalog.categories) || catalog.categories.length > MAX_CATEGORIES) {
+    throw new Error('常用類別最多 ' + MAX_CATEGORIES + ' 個');
+  }
+  return {
+    version: 1,
+    categories: catalog.categories.map(function (category) {
+      if (!category || typeof category !== 'object') throw new Error('常用類別格式不正確');
+      if (ITEM_SIDES.indexOf(category.side) === -1) throw new Error('常用類別的加項或扣項不正確');
+      var item = valueItem_(category, '常用類別');
+      item.side = category.side;
+      return item;
+    })
+  };
+}
+
+function items_(list, label) {
+  if (!Array.isArray(list) || list.length > MAX_PAY_ITEMS) throw new Error(label + '最多 ' + MAX_PAY_ITEMS + ' 項');
+  return list.map(function (item) {
+    if (!item || typeof item !== 'object') throw new Error(label + '格式不正確');
+    var clean = valueItem_(item, label);
+    if (typeof item.regular !== 'boolean') throw new Error(label + '「' + clean.name + '」缺少每月沿用的設定');
+    clean.regular = item.regular;
+    return clean;
+  });
+}
+
+/** 加項、扣項與常用類別共用的欄位：代碼、名稱、金額或比例 */
+function valueItem_(item, label) {
+  if (ITEM_MODES.indexOf(item.mode) === -1) throw new Error(label + '的計算方式不正確：' + item.mode);
+  var name = name_(item.name);
+  return {
+    id: id_(item.id),
+    name: name,
+    mode: item.mode,
+    value: item.mode === 'percent' ? percent_(item.value, name) : money_(item.value, name)
+  };
+}
+
+function money_(value, label) {
+  var number = Number(value);
+  if (typeof value !== 'number' || !isFinite(number) || number < 0 || number > MAX_MONEY) {
+    throw new Error(label + '的金額需介於 0 到 ' + MAX_MONEY);
+  }
+  return Math.round(number * 100) / 100;
+}
+
+function percent_(value, label) {
+  if (typeof value !== 'number' || !isFinite(value) || value < 0 || value > 100) {
+    throw new Error(label + '的比例需介於 0 到 100');
+  }
+  return Math.round(value * 100) / 100;
+}
+
+function name_(value) {
+  var text = typeof value === 'string' ? value.trim() : '';
+  if (!text || text.length > MAX_NAME_LENGTH) throw new Error('項目名稱需要 1 到 ' + MAX_NAME_LENGTH + ' 個字');
+  return text;
+}
+
+function id_(value) {
+  if (typeof value !== 'string' || !/^[A-Za-z0-9_-]{1,40}$/.test(value)) throw new Error('項目代碼不正確');
+  return value;
 }
 
 function assertMonth_(month) {

@@ -3,6 +3,7 @@
 export const KEYS = {
   settings: 'clockcat:settings',
   queue: 'clockcat:queue',
+  pay: 'clockcat:pay',
   monthPrefix: 'clockcat:month:',
 } as const;
 
@@ -20,6 +21,13 @@ export const store = {
       localStorage.setItem(key, JSON.stringify(value));
     } catch {
       // 空間不足或被封鎖時，只是失去離線快取
+    }
+  },
+  remove(key: string): void {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // 同上
     }
   },
   removeWithPrefix(prefix: string): void {

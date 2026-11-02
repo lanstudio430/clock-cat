@@ -1,4 +1,4 @@
-# 上班日記
+# 工時貓 Clock Cat
 
 以 Google Apps Script 網頁應用程式搭配 Google Sheets 儲存資料的月行事曆，介面使用 Tailwind CSS 與 Font Awesome。
 

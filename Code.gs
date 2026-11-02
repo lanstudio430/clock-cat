@@ -9,7 +9,7 @@ var MAX_MONTH_HOURS = 744;
 
 function doGet() {
   return HtmlService.createHtmlOutputFromFile('Index')
-    .setTitle('上班日記')
+    .setTitle('工時貓 Clock Cat')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 

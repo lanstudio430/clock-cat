@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&family=LXGW+WenKai+TC:wght@400;700&display=swap">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            paper: '#fbf7ef',
+            sheet: '#fffdf8',
+            ink: '#3a342b',
+            pencil: '#756b5e',
+            rule: '#e5dccb'
+          },
+          fontFamily: {
+            // Nunito 負責數字：LXGW WenKai TC 的 9 容易看成 q
+            diary: ['Nunito', '"LXGW WenKai TC"', '"Kaiti TC"', 'DFKai-SB', 'serif']
+          }
+        }
+      }
+    };
+  </script>
+</head>
+<body class="min-h-screen bg-paper font-diary text-ink">
+  <main class="mx-auto max-w-5xl px-2 py-6 sm:px-6 sm:py-10">
+    <header class="flex flex-wrap items-center gap-x-1 gap-y-2">
+      <button type="button" id="prev" aria-label="上個月"
+        class="h-10 w-10 rounded-none text-pencil hover:bg-rule/60 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink">
+        <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
+      </button>
+      <select id="month" aria-label="月份"
+        class="h-12 cursor-pointer rounded-none bg-transparent text-3xl font-bold outline-none hover:bg-rule/40 focus-visible:bg-rule/40 sm:text-4xl"></select>
+      <select id="year" aria-label="年份"
+        class="h-10 cursor-pointer rounded-none bg-transparent text-lg text-pencil outline-none hover:bg-rule/40 focus-visible:bg-rule/40"></select>
+      <button type="button" id="next" aria-label="下個月"
+        class="h-10 w-10 rounded-none text-pencil hover:bg-rule/60 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink">
+        <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+      </button>
+      <button type="button" id="today"
+        class="ml-auto h-10 rounded-none px-3 text-pencil hover:bg-rule/60 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink">
+        <i class="fa-regular fa-calendar-check mr-1" aria-hidden="true"></i>今天
+      </button>
+    </header>
+
+    <div class="mt-3 border-t border-rule pt-3">
+      <label class="flex items-center gap-2">
+        <i class="fa-solid fa-pen-nib text-sm text-pencil" aria-hidden="true"></i>
+        應上班時數
+        <input id="required" type="number" min="0" max="744" step="0.25" inputmode="decimal" placeholder="—" disabled
+          class="h-9 w-20 rounded-none border-b border-ink/40 bg-transparent text-center text-lg font-bold placeholder:font-normal placeholder:text-pencil focus:border-ink focus:outline-none disabled:opacity-50">
+        小時
+      </label>
+    </div>
+
+    <p id="status" role="status" class="my-2 min-h-6 text-sm text-pencil"></p>
+
+    <div id="calendar" class="grid grid-cols-[repeat(7,minmax(0,1fr))_3rem] rounded-lg bg-sheet sm:grid-cols-[repeat(7,minmax(0,1fr))_5rem]"></div>
+  </main>
+
+  <dialog id="dialog" class="w-[min(calc(100vw-2rem),27rem)] rounded-xl bg-sheet p-0 font-diary text-ink backdrop:bg-stone-900/40">
+    <form id="form" novalidate class="p-5 sm:p-6">
+      <h2 id="dialog-title" class="text-2xl font-bold"></h2>
+
+      <fieldset class="mt-5">
+        <legend class="flex items-center gap-2 font-bold">
+          <i class="fa-regular fa-clock text-sm text-pencil" aria-hidden="true"></i>原定上下班
+        </legend>
+        <div class="mt-2 grid grid-cols-2 gap-4">
+          <div data-time="plannedStart" data-label="原定上班"></div>
+          <div data-time="plannedEnd" data-label="原定下班"></div>
+        </div>
+      </fieldset>
+
+      <fieldset class="mt-5">
+        <legend class="flex w-full items-center gap-2 font-bold">
+          <i class="fa-solid fa-pencil text-sm text-pencil" aria-hidden="true"></i>實際上下班
+          <span class="ml-auto text-sm font-normal text-pencil">未填時以原定為準</span>
+        </legend>
+        <div class="mt-2 grid grid-cols-2 gap-4">
+          <div data-time="actualStart" data-label="實際上班"></div>
+          <div data-time="actualEnd" data-label="實際下班"></div>
+        </div>
+      </fieldset>
+
+      <fieldset class="mt-5">
+        <legend class="flex items-center gap-2 font-bold">
+          <i class="fa-regular fa-bookmark text-sm text-pencil" aria-hidden="true"></i>假別
+        </legend>
+        <div class="mt-2 flex flex-wrap gap-2 text-sm">
+          <label class="cursor-pointer">
+            <input type="radio" name="dayType" value="" checked class="peer sr-only">
+            <span class="block border border-rule px-3 py-1.5 peer-checked:border-ink peer-checked:bg-ink peer-checked:text-sheet peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink">無</span>
+          </label>
+          <label class="cursor-pointer">
+            <input type="radio" name="dayType" value="例假" class="peer sr-only">
+            <span class="block border border-orange-300 px-3 py-1.5 text-orange-800 peer-checked:border-orange-300 peer-checked:bg-orange-200 peer-checked:text-orange-900 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink">例假</span>
+          </label>
+          <label class="cursor-pointer">
+            <input type="radio" name="dayType" value="休假" class="peer sr-only">
+            <span class="block border border-orange-200 px-3 py-1.5 text-orange-700 peer-checked:bg-orange-100 peer-checked:text-orange-800 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink">休假</span>
+          </label>
+          <label class="cursor-pointer">
+            <input type="radio" name="dayType" value="國定假日" class="peer sr-only">
+            <span class="block border border-red-200 px-3 py-1.5 text-red-700 peer-checked:bg-red-100 peer-checked:text-red-800 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink">國定假日</span>
+          </label>
+        </div>
+      </fieldset>
+
+      <p id="form-error" role="alert" class="mt-3 min-h-5 text-sm text-red-700"></p>
+
+      <div class="mt-2 flex items-center gap-2">
+        <button type="button" id="delete" class="h-10 rounded-none px-3 text-red-700 hover:bg-red-50 disabled:opacity-50">
+          <i class="fa-regular fa-trash-can mr-1" aria-hidden="true"></i>刪除
+        </button>
+        <button type="button" id="cancel" class="ml-auto h-10 rounded-none px-4 text-pencil hover:bg-rule/60 hover:text-ink disabled:opacity-50">取消</button>
+        <button type="submit" id="save" class="h-10 rounded-none bg-ink px-5 text-sheet hover:bg-ink/85 disabled:opacity-50">
+          <i class="fa-solid fa-check mr-1" aria-hidden="true"></i>儲存
+        </button>
+      </div>
+    </form>
+  </dialog>
+
+  <script>
+    const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日'];
+    const DAY_TYPE_STYLES = {
+      '例假': { cell: 'bg-orange-50', badge: 'bg-orange-200 text-orange-900' },
+      '休假': { cell: 'bg-orange-50/60', badge: 'bg-orange-100 text-orange-800' },
+      '國定假日': { cell: 'bg-red-50', badge: 'bg-red-100 text-red-800' }
+    };
+    const TIME_FIELDS = ['plannedStart', 'plannedEnd', 'actualStart', 'actualEnd'];
+    const HOURS = Array.from({ length: 16 }, (_, i) => i + 6);
+    const MINUTES = [['0', '0'], ['0.25', '.25'], ['0.5', '.5'], ['0.75', '.75']];
+    const YEAR_RANGE = 5;
+
+    const el = (id) => document.getElementById(id);
+    const now = new Date();
+    const state = {
+      year: now.getFullYear(),
+      month: now.getMonth(),
+      entries: {},
+      requiredHours: null,
+      ready: false,
+      requestId: 0,
+      editingDate: null,
+      saving: false
+    };
+
+    function toIso(date) {
+      const pad = (n) => String(n).padStart(2, '0');
+      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+    }
+
+    function monthKey() {
+      return toIso(new Date(state.year, state.month, 1)).slice(0, 7);
+    }
+
+    // 回傳該月行事曆要顯示的所有日期，從第一週的星期一排到最後一週的星期日
+    function gridDays() {
+      const offset = (new Date(state.year, state.month, 1).getDay() + 6) % 7;
+      const dayCount = new Date(state.year, state.month + 1, 0).getDate();
+      const cellCount = Math.ceil((offset + dayCount) / 7) * 7;
+      return Array.from({ length: cellCount }, (_, i) =>
+        new Date(state.year, state.month, 1 - offset + i));
+    }
+
+    // 有填實際時間就用實際，否則用原定；日曆顯示與週合計都以此為準
+    // 用 Number.isFinite 判斷：沒填的時間傳到前端後可能是 null 或 undefined
+    function effectiveTime(entry) {
+      if (entry && Number.isFinite(entry.actualStart) && Number.isFinite(entry.actualEnd)) {
+        return { label: '實際', start: entry.actualStart, end: entry.actualEnd };
+      }
+      if (entry && Number.isFinite(entry.plannedStart) && Number.isFinite(entry.plannedEnd)) {
+        return { label: '原定', start: entry.plannedStart, end: entry.plannedEnd };
+      }
+      return null;
+    }
+
+    function workedHours(entry) {
+      const time = effectiveTime(entry);
+      return time ? Math.max(time.end - time.start, 0) : 0;
+    }
+
+    function formatNumber(value) {
+      return String(Math.round(value * 100) / 100);
+    }
+
+    // 整點補零（09），有分鐘時維持小數（9.5）
+    function formatTime(value) {
+      return Number.isInteger(value) ? String(value).padStart(2, '0') : formatNumber(value);
+    }
+
+    function make(tag, className, text) {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (text !== undefined) node.textContent = text;
+      return node;
+    }
+
+    function timeStack(time) {
+      const stack = make('span', 'flex flex-col text-[13px] font-bold leading-tight tabular-nums text-red-700 sm:text-base');
+      stack.append(make('span', '', formatTime(time.start)), make('span', '', formatTime(time.end)));
+      return stack;
+    }
+
+    function renderDay(date, todayIso) {
+      const iso = toIso(date);
+      const entry = state.entries[iso];
+      const style = entry && DAY_TYPE_STYLES[entry.dayType];
+      const label = [`${date.getMonth() + 1}月${date.getDate()}日`];
+
+      const button = make('button',
+        'flex min-h-[5.5rem] min-w-0 flex-col items-start gap-1 border-b border-r border-dashed border-rule p-1 text-left ' +
+        'hover:enabled:bg-rule/40 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink ' +
+        `disabled:cursor-default sm:min-h-[6.5rem] sm:p-2 ${style ? style.cell : ''}`);
+      button.type = 'button';
+      button.disabled = !state.ready;
+
+      const number = make('span',
+        iso === todayIso
+          ? 'flex h-6 w-6 items-center justify-center rounded-[50%_45%_55%_48%] border-2 border-ink text-sm font-bold'
+          : 'flex h-6 items-center text-sm text-pencil',
+        date.getDate());
+      const content = make('span', 'flex min-w-0 max-w-full flex-col items-start gap-1');
+      const time = effectiveTime(entry);
+
+      if (time) {
+        content.append(timeStack(time));
+        label.push(`${time.label} ${formatTime(time.start)} 至 ${formatTime(time.end)}`);
+      }
+      if (entry && entry.dayType) {
+        content.append(make('span',
+          `max-w-full rounded px-1 py-px text-[11px] leading-snug sm:px-1.5 sm:text-xs ${style ? style.badge : 'bg-rule'}`,
+          entry.dayType));
+        label.push(entry.dayType);
+      }
+
+      button.append(number, content);
+      button.setAttribute('aria-label', label.join('，'));
+      button.addEventListener('click', () => openDialog(iso, date));
+      return button;
+    }
+
+    function renderCalendar() {
+      const calendar = el('calendar');
+      const days = gridDays();
+      const todayIso = toIso(new Date());
+      let grandTotal = 0;
+
+      calendar.classList.toggle('opacity-50', !state.ready);
+      calendar.replaceChildren(
+        ...WEEKDAYS.map((name) => make('div', 'border-b border-rule py-2 text-center text-sm text-pencil', name)),
+        make('div', 'border-b border-rule py-2 text-center text-sm font-bold', '合計')
+      );
+
+      // state.entries 只載入當月資料，所以週合計與加總都不含其他月份
+      for (let i = 0; i < days.length; i += 7) {
+        const week = days.slice(i, i + 7);
+        const hours = week.reduce((sum, date) => sum + workedHours(state.entries[toIso(date)]), 0);
+        grandTotal += hours;
+        calendar.append(...week.map((date) => (date.getMonth() === state.month
+          ? renderDay(date, todayIso)
+          : make('div', 'border-b border-r border-dashed border-rule'))));
+        calendar.append(make('div',
+          'flex items-center justify-center border-b border-dashed border-rule text-sm font-bold tabular-nums sm:text-base',
+          state.ready ? `${formatNumber(hours)}h` : '–'));
+      }
+
+      calendar.append(...renderSummaryRow('週合計加總', state.ready ? `${formatNumber(grandTotal)}h` : '–'));
+      if (Number.isFinite(state.requiredHours)) {
+        calendar.append(...renderSummaryRow('加班時數', `${formatNumber(grandTotal - state.requiredHours)}h`));
+      }
+    }
+
+    function renderSummaryRow(label, value) {
+      return [
+        make('div', 'col-span-6 flex items-center justify-end px-3 py-2 text-sm text-pencil sm:col-span-7 sm:text-base', label),
+        make('div', 'col-span-2 flex items-center justify-end whitespace-nowrap py-2 pr-2 text-sm font-bold tabular-nums sm:col-span-1 sm:justify-center sm:pr-0 sm:text-base', value)
+      ];
+    }
+
+    function renderSelectors() {
+      const options = [];
+      for (let year = state.year - YEAR_RANGE; year <= state.year + YEAR_RANGE; year++) {
+        options.push(new Option(`${year} 年`, year, false, year === state.year));
+      }
+      el('year').replaceChildren(...options);
+      el('month').value = state.month;
+    }
+
+    function renderRequired() {
+      el('required').disabled = !state.ready;
+      el('required').value = Number.isFinite(state.requiredHours) ? state.requiredHours : '';
+    }
+
+    function setStatus(message, options) {
+      const { icon, retry, isError } = options || {};
+      const status = el('status');
+      status.replaceChildren();
+      status.classList.toggle('text-red-700', Boolean(isError));
+      if (icon) status.append(make('i', `${icon} mr-1`));
+      status.append(message);
+      if (retry) {
+        const button = make('button', 'ml-2 underline underline-offset-4', '重試');
+        button.type = 'button';
+        button.addEventListener('click', retry);
+        status.append(button);
+      }
+    }
+
+    function load() {
+      const requestId = ++state.requestId;
+
+      state.ready = false;
+      state.entries = {};
+      state.requiredHours = null;
+      renderSelectors();
+      renderRequired();
+      renderCalendar();
+      setStatus('載入中…', { icon: 'fa-solid fa-circle-notch fa-spin' });
+
+      // 只採用最新一次請求的結果，避免快速切換月份時被舊資料覆蓋
+      google.script.run
+        .withSuccessHandler((data) => {
+          if (requestId !== state.requestId) return;
+          state.entries = Object.fromEntries(data.entries.map((entry) => [entry.date, entry]));
+          state.requiredHours = data.requiredHours;
+          state.ready = true;
+          setStatus('');
+          renderRequired();
+          renderCalendar();
+        })
+        .withFailureHandler((error) => {
+          if (requestId !== state.requestId) return;
+          setStatus(`載入失敗：${error.message}`, { retry: load, isError: true });
+        })
+        .getCalendarData(
+          toIso(new Date(state.year, state.month, 1)),
+          toIso(new Date(state.year, state.month + 1, 0)),
+          monthKey()
+        );
+    }
+
+    function goTo(year, month) {
+      const target = new Date(year, month, 1);
+      state.year = target.getFullYear();
+      state.month = target.getMonth();
+      load();
+    }
+
+    function saveRequired() {
+      const input = el('required');
+      const month = monthKey();
+      const isCurrentMonth = () => month === monthKey();
+      const fail = (message) => {
+        if (isCurrentMonth()) renderRequired();
+        setStatus(`應上班時數未儲存：${message}`, { isError: true });
+      };
+
+      if (input.validity.badInput) {
+        fail('請輸入數字');
+        return;
+      }
+      google.script.run
+        .withSuccessHandler((hours) => {
+          if (!isCurrentMonth()) return;
+          state.requiredHours = hours;
+          renderRequired();
+          renderCalendar();
+          setStatus('應上班時數已儲存', { icon: 'fa-solid fa-check' });
+        })
+        .withFailureHandler((error) => fail(error.message))
+        .saveRequiredHours(month, input.value);
+    }
+
+    function buildTimeField(container) {
+      const field = container.dataset.time;
+      const label = container.dataset.label;
+      const selectClass = 'h-10 w-full min-w-0 cursor-pointer rounded-none border-b border-ink/40 bg-transparent tabular-nums ' +
+        'outline-none hover:bg-rule/40 focus:border-b-2 focus:border-ink';
+
+      const hour = make('select', selectClass);
+      hour.id = `${field}Hour`;
+      hour.setAttribute('aria-label', `${label}（時）`);
+      hour.append(new Option('--', ''), ...HOURS.map((h) => new Option(String(h).padStart(2, '0'), h)));
+
+      const minute = make('select', selectClass);
+      minute.id = `${field}Minute`;
+      minute.setAttribute('aria-label', `${label}（分）`);
+      minute.append(...MINUTES.map(([value, text]) => new Option(text, value)));
+
+      const row = make('div', 'mt-1 grid grid-cols-[3fr_2fr] gap-2');
+      row.append(hour, minute);
+      container.append(make('span', 'text-sm text-pencil', label.slice(2)), row);
+    }
+
+    function readTime(field) {
+      const hour = el(`${field}Hour`).value;
+      return hour === '' ? null : Number(hour) + Number(el(`${field}Minute`).value);
+    }
+
+    function writeTime(field, value) {
+      const isBlank = value === null || value === undefined;
+      el(`${field}Hour`).value = isBlank ? '' : Math.floor(value);
+      el(`${field}Minute`).value = isBlank ? '0' : value - Math.floor(value);
+    }
+
+    function openDialog(iso, date) {
+      const entry = state.entries[iso];
+      const weekday = WEEKDAYS[(date.getDay() + 6) % 7];
+
+      state.editingDate = iso;
+      el('dialog-title').textContent =
+        `${date.getFullYear()} 年 ${date.getMonth() + 1} 月 ${date.getDate()} 日（${weekday}）`;
+      TIME_FIELDS.forEach((field) => writeTime(field, entry && entry[field]));
+      // 逐一設定：RadioNodeList.value 指定空字串時不會選取「無」
+      for (const radio of el('form').elements.dayType) {
+        radio.checked = radio.value === (entry ? entry.dayType : '');
+      }
+      el('delete').hidden = !entry;
+      el('form-error').textContent = '';
+      el('dialog').showModal();
+    }
+
+    function setSaving(saving) {
+      state.saving = saving;
+      ['save', 'delete', 'cancel'].forEach((id) => { el(id).disabled = saving; });
+    }
+
+    function submitChange(call, onSuccess) {
+      setSaving(true);
+      el('form-error').textContent = '';
+      call(google.script.run
+        .withSuccessHandler((result) => {
+          setSaving(false);
+          onSuccess(result);
+          el('dialog').close();
+          renderCalendar();
+        })
+        .withFailureHandler((error) => {
+          setSaving(false);
+          el('form-error').textContent = error.message;
+        }));
+    }
+
+    el('form').addEventListener('submit', (event) => {
+      event.preventDefault();
+      if (state.saving) return;
+      const entry = { date: state.editingDate, dayType: el('form').elements.dayType.value };
+      TIME_FIELDS.forEach((field) => { entry[field] = readTime(field); });
+      submitChange(
+        (run) => run.saveEntry(entry),
+        (saved) => { state.entries[saved.date] = saved; }
+      );
+    });
+
+    el('delete').addEventListener('click', () => {
+      const date = state.editingDate;
+      submitChange(
+        (run) => run.deleteEntry(date),
+        () => { delete state.entries[date]; }
+      );
+    });
+
+    el('cancel').addEventListener('click', () => el('dialog').close());
+    el('dialog').addEventListener('cancel', (event) => {
+      if (state.saving) event.preventDefault();
+    });
+
+    el('prev').addEventListener('click', () => goTo(state.year, state.month - 1));
+    el('next').addEventListener('click', () => goTo(state.year, state.month + 1));
+    el('today').addEventListener('click', () => {
+      const today = new Date();
+      goTo(today.getFullYear(), today.getMonth());
+    });
+    el('year').addEventListener('change', (event) => goTo(Number(event.target.value), state.month));
+    el('month').addEventListener('change', (event) => goTo(state.year, Number(event.target.value)));
+    el('required').addEventListener('change', saveRequired);
+
+    document.querySelectorAll('[data-time]').forEach(buildTimeField);
+    el('month').replaceChildren(
+      ...Array.from({ length: 12 }, (_, i) => new Option(`${i + 1} 月`, i))
+    );
+    load();
+  </script>
+</body>
+</html>

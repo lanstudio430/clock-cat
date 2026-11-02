@@ -6,35 +6,115 @@ var DAY_TYPES = ['例假', '休假', '國定假日'];
 var EARLIEST_TIME = 6;
 var LATEST_TIME = 21.75;
 var MAX_MONTH_HOURS = 744;
+var MAX_MONTHS_PER_REQUEST = 6;
+var API_KEY_PROPERTY = 'API_KEY';
 
+var ACTIONS = {
+  getMonths: function (request) { return getMonths(request.months); },
+  saveEntry: function (request) { return saveEntry(request.entry); },
+  deleteEntry: function (request) { deleteEntry(request.date); return null; },
+  saveRequiredHours: function (request) { return saveRequiredHours(request.month, request.value); }
+};
+
+/** 連線測試：不需要密鑰，也不回傳任何資料。 */
 function doGet() {
-  return HtmlService.createHtmlOutputFromFile('Index')
-    .setTitle('工時貓 Clock Cat')
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+  return jsonOutput_({ ok: true, data: 'Clock Cat API' });
 }
 
-/** 取得行事曆資料：日期區間（yyyy-MM-dd，含頭尾）內的紀錄，以及該月份（yyyy-MM）的應上班時數。 */
-function getCalendarData(from, to, month) {
+/** API 入口：body 為 JSON 文字 {key, action, ...參數}，回傳 {ok, data} 或 {ok: false, code, error}。 */
+function doPost(e) {
+  return jsonOutput_(handleRequest_(e && e.postData ? e.postData.contents : ''));
+}
+
+/** 第一次使用時，在 Apps Script 編輯器執行一次：產生密鑰並顯示在「執行記錄」。 */
+function setupApiKey() {
+  var properties = PropertiesService.getScriptProperties();
+  var key = properties.getProperty(API_KEY_PROPERTY);
+  if (!key) {
+    key = (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, '');
+    properties.setProperty(API_KEY_PROPERTY, key);
+  }
+  console.log('API_KEY: ' + key);
+}
+
+function handleRequest_(body) {
+  try {
+    var expected = PropertiesService.getScriptProperties().getProperty(API_KEY_PROPERTY);
+    if (!expected) return failure_('not_configured', '尚未設定密鑰，請在 Apps Script 執行 setupApiKey');
+
+    var request = parseJson_(body);
+    if (!request || !isSameText_(request.key, expected)) return failure_('unauthorized', '密鑰不正確');
+    if (!Object.prototype.hasOwnProperty.call(ACTIONS, request.action)) {
+      return failure_('bad_request', '不支援的操作：' + request.action);
+    }
+    return { ok: true, data: ACTIONS[request.action](request) };
+  } catch (error) {
+    return failure_(error.code || 'rejected', error.message);
+  }
+}
+
+function parseJson_(text) {
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    var invalid = new Error('請求格式不正確');
+    invalid.code = 'bad_request';
+    throw invalid;
+  }
+}
+
+function failure_(code, message) {
+  return { ok: false, code: code, error: message };
+}
+
+function jsonOutput_(payload) {
+  return ContentService.createTextOutput(JSON.stringify(payload))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+/** 逐字元比對，避免從回應時間推測密鑰。 */
+function isSameText_(actual, expected) {
+  if (typeof actual !== 'string' || actual.length !== expected.length) return false;
+  var difference = 0;
+  for (var i = 0; i < expected.length; i++) {
+    difference |= actual.charCodeAt(i) ^ expected.charCodeAt(i);
+  }
+  return difference === 0;
+}
+
+/** 取得多個月份（yyyy-MM）的紀錄與應上班時數，回傳 {月份: {entries, requiredHours}}。 */
+function getMonths(months) {
+  if (!Array.isArray(months) || months.length < 1 || months.length > MAX_MONTHS_PER_REQUEST) {
+    throw new Error('月份數量不正確');
+  }
+  months.forEach(assertMonth_);
   upgradeLegacySheet_();
 
-  var sheet = getSheet_(SHIFT_SHEET, SHIFT_HEADERS);
-  var entries = readRows_(sheet)
-    .filter(function (row) { return row[0] >= from && row[0] <= to; })
-    .map(function (row) {
-      return {
-        date: row[0],
-        plannedStart: parseHours_(row[1]),
-        plannedEnd: parseHours_(row[2]),
-        actualStart: parseHours_(row[3]),
-        actualEnd: parseHours_(row[4]),
-        dayType: row[5]
-      };
-    });
+  var shiftRows = readRows_(getSheet_(SHIFT_SHEET, SHIFT_HEADERS));
+  var monthRows = readRows_(getSheet_(MONTH_SHEET, MONTH_HEADERS));
+  var result = {};
 
-  var monthRow = readRows_(getSheet_(MONTH_SHEET, MONTH_HEADERS))
-    .filter(function (row) { return row[0] === month; })[0];
+  months.forEach(function (month) {
+    var monthRow = monthRows.filter(function (row) { return row[0] === month; })[0];
+    result[month] = {
+      entries: shiftRows
+        .filter(function (row) { return /^\d{4}-\d{2}-\d{2}$/.test(row[0]) && row[0].slice(0, 7) === month; })
+        .map(rowToEntry_),
+      requiredHours: monthRow ? parseHours_(monthRow[1]) : null
+    };
+  });
+  return result;
+}
 
-  return { entries: entries, requiredHours: monthRow ? parseHours_(monthRow[1]) : null };
+function rowToEntry_(row) {
+  return {
+    date: row[0],
+    plannedStart: parseHours_(row[1]),
+    plannedEnd: parseHours_(row[2]),
+    actualStart: parseHours_(row[3]),
+    actualEnd: parseHours_(row[4]),
+    dayType: row[5]
+  };
 }
 
 /** 新增或更新某一天的紀錄，回傳整理後的內容。 */
@@ -62,9 +142,7 @@ function deleteEntry(date) {
 
 /** 儲存某月份的應上班時數，留空代表清除；回傳整理後的時數。 */
 function saveRequiredHours(month, value) {
-  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
-    throw new Error('月份不正確：' + month);
-  }
+  assertMonth_(month);
   var isBlank = value === '' || value === null || value === undefined;
   var hours = isBlank ? null : Number(value);
   if (!isBlank && !(hours >= 0 && hours <= MAX_MONTH_HOURS)) {
@@ -125,7 +203,13 @@ function deleteRowByKey_(sheet, key) {
 
 function withLock_(callback) {
   var lock = LockService.getScriptLock();
-  lock.waitLock(10000);
+  try {
+    lock.waitLock(10000);
+  } catch (error) {
+    var busy = new Error('試算表忙碌中，請稍後再試');
+    busy.code = 'busy';
+    throw busy;
+  }
   try {
     return callback();
   } finally {
@@ -202,6 +286,12 @@ function assertDate_(date) {
   var parsed = match && new Date(Date.UTC(+match[1], +match[2] - 1, +match[3]));
   if (!parsed || parsed.toISOString().slice(0, 10) !== date) {
     throw new Error('日期不正確：' + date);
+  }
+}
+
+function assertMonth_(month) {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+    throw new Error('月份不正確：' + month);
   }
 }
 

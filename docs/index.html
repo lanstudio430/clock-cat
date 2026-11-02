@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>工時貓 Clock Cat</title>
+  <meta name="theme-color" content="#fbf7ef">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="工時貓">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&family=LXGW+WenKai+TC:wght@400;700&display=swap">
+  <link rel="stylesheet" href="vendor/fontawesome/css/fontawesome.min.css">
+  <link rel="stylesheet" href="vendor/fontawesome/css/solid.min.css">
+  <link rel="stylesheet" href="vendor/fontawesome/css/regular.min.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="min-h-screen bg-paper font-diary text-ink">
+  <main class="mx-auto max-w-5xl px-2 pt-6 sm:px-6 sm:pt-10" style="padding-bottom: max(2.5rem, env(safe-area-inset-bottom))">
+    <header class="flex flex-wrap items-center gap-x-1 gap-y-2">
+      <button type="button" id="prev" aria-label="上個月"
+        class="h-10 w-9 rounded-none text-pencil sm:w-10 hover:bg-rule/60 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink">
+        <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
+      </button>
+      <select id="month" aria-label="月份"
+        class="h-12 cursor-pointer rounded-none bg-transparent text-3xl font-bold outline-none hover:bg-rule/40 focus-visible:bg-rule/40 sm:text-4xl"></select>
+      <select id="year" aria-label="年份"
+        class="h-10 cursor-pointer rounded-none bg-transparent text-lg text-pencil outline-none hover:bg-rule/40 focus-visible:bg-rule/40"></select>
+      <button type="button" id="next" aria-label="下個月"
+        class="h-10 w-9 rounded-none text-pencil sm:w-10 hover:bg-rule/60 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink">
+        <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+      </button>
+      <button type="button" id="today"
+        class="ml-auto h-10 rounded-none px-2.5 text-pencil hover:bg-rule/60 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink">
+        <i class="fa-regular fa-calendar-check sm:mr-1" aria-hidden="true"></i><span class="sr-only sm:not-sr-only">今天</span>
+      </button>
+      <button type="button" id="open-settings" aria-label="連線設定"
+        class="h-10 w-9 rounded-none text-pencil sm:w-10 hover:bg-rule/60 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink">
+        <i class="fa-solid fa-gear" aria-hidden="true"></i>
+      </button>
+    </header>
+
+    <div class="mt-3 border-t border-rule pt-3">
+      <label class="flex items-center gap-2">
+        <i class="fa-solid fa-pen-nib text-sm text-pencil" aria-hidden="true"></i>
+        應上班時數
+        <input id="required" type="number" min="0" max="744" step="0.25" inputmode="decimal" placeholder="—" disabled
+          class="h-9 w-20 rounded-none border-b border-ink/40 bg-transparent text-center text-lg font-bold placeholder:font-normal placeholder:text-pencil focus:border-ink focus:outline-none disabled:opacity-50">
+        小時
+      </label>
+    </div>
+
+    <p id="status" role="status" class="my-2 min-h-6 text-sm text-pencil"></p>
+
+    <div id="calendar" class="grid grid-cols-[repeat(7,minmax(0,1fr))_3rem] rounded-lg bg-sheet sm:grid-cols-[repeat(7,minmax(0,1fr))_5rem]"></div>
+  </main>
+
+  <dialog id="dialog" class="w-[min(calc(100vw-2rem),27rem)] rounded-xl bg-sheet p-0 font-diary text-ink backdrop:bg-stone-900/40">
+    <form id="form" novalidate class="p-5 sm:p-6">
+      <h2 id="dialog-title" class="text-2xl font-bold"></h2>
+
+      <fieldset class="mt-5">
+        <legend class="flex items-center gap-2 font-bold">
+          <i class="fa-regular fa-clock text-sm text-pencil" aria-hidden="true"></i>原定上下班
+        </legend>
+        <div class="mt-2 grid grid-cols-2 gap-4">
+          <div data-time="plannedStart" data-label="原定上班"></div>
+          <div data-time="plannedEnd" data-label="原定下班"></div>
+        </div>
+      </fieldset>
+
+      <fieldset class="mt-5">
+        <legend class="flex w-full items-center gap-2 font-bold">
+          <i class="fa-solid fa-pencil text-sm text-pencil" aria-hidden="true"></i>實際上下班
+          <span class="ml-auto text-sm font-normal text-pencil">未填時以原定為準</span>
+        </legend>
+        <div class="mt-2 grid grid-cols-2 gap-4">
+          <div data-time="actualStart" data-label="實際上班"></div>
+          <div data-time="actualEnd" data-label="實際下班"></div>
+        </div>
+      </fieldset>
+
+      <fieldset class="mt-5">
+        <legend class="flex items-center gap-2 font-bold">
+          <i class="fa-regular fa-bookmark text-sm text-pencil" aria-hidden="true"></i>假別
+        </legend>
+        <div class="mt-2 flex flex-wrap gap-2 text-sm">
+          <label class="cursor-pointer">
+            <input type="radio" name="dayType" value="" checked class="peer sr-only">
+            <span class="block border border-rule px-3 py-1.5 peer-checked:border-ink peer-checked:bg-ink peer-checked:text-sheet peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink">無</span>
+          </label>
+          <label class="cursor-pointer">
+            <input type="radio" name="dayType" value="例假" class="peer sr-only">
+            <span class="block border border-orange-300 px-3 py-1.5 text-orange-800 peer-checked:border-orange-300 peer-checked:bg-orange-200 peer-checked:text-orange-900 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink">例假</span>
+          </label>
+          <label class="cursor-pointer">
+            <input type="radio" name="dayType" value="休假" class="peer sr-only">
+            <span class="block border border-orange-200 px-3 py-1.5 text-orange-700 peer-checked:bg-orange-100 peer-checked:text-orange-800 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink">休假</span>
+          </label>
+          <label class="cursor-pointer">
+            <input type="radio" name="dayType" value="國定假日" class="peer sr-only">
+            <span class="block border border-red-200 px-3 py-1.5 text-red-700 peer-checked:bg-red-100 peer-checked:text-red-800 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink">國定假日</span>
+          </label>
+        </div>
+      </fieldset>
+
+      <p id="form-error" role="alert" class="mt-3 min-h-5 text-sm text-red-700"></p>
+
+      <div class="mt-2 flex items-center gap-2">
+        <button type="button" id="delete" class="h-10 rounded-none px-3 text-red-700 hover:bg-red-50">
+          <i class="fa-regular fa-trash-can mr-1" aria-hidden="true"></i>刪除
+        </button>
+        <button type="button" id="cancel" class="ml-auto h-10 rounded-none px-4 text-pencil hover:bg-rule/60 hover:text-ink">取消</button>
+        <button type="submit" id="save" class="h-10 rounded-none bg-ink px-5 text-sheet hover:bg-ink/85">
+          <i class="fa-solid fa-check mr-1" aria-hidden="true"></i>儲存
+        </button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="settings" class="w-[min(calc(100vw-2rem),27rem)] rounded-xl bg-sheet p-0 font-diary text-ink backdrop:bg-stone-900/40">
+    <form id="settings-form" novalidate class="p-5 sm:p-6">
+      <h2 class="text-2xl font-bold">連線設定</h2>
+      <p class="mt-2 text-sm text-pencil">貼上 Apps Script 部署後的網址與密鑰，只會存在這台裝置。</p>
+
+      <label class="mt-5 block">
+        <span class="font-bold">網頁應用程式網址</span>
+        <input id="settings-url" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false"
+          placeholder="https://script.google.com/macros/s/…/exec"
+          class="mt-1 h-10 w-full min-w-0 rounded-none border-b border-ink/40 bg-transparent text-base placeholder:text-pencil/60 focus:border-b-2 focus:border-ink focus:outline-none">
+      </label>
+
+      <label class="mt-4 block">
+        <span class="font-bold">密鑰</span>
+        <input id="settings-key" type="password" autocomplete="off" autocapitalize="off" spellcheck="false"
+          class="mt-1 h-10 w-full min-w-0 rounded-none border-b border-ink/40 bg-transparent text-base focus:border-b-2 focus:border-ink focus:outline-none">
+      </label>
+
+      <p id="settings-error" role="alert" class="mt-3 min-h-5 text-sm text-red-700"></p>
+
+      <div class="mt-2 flex items-center gap-2">
+        <button type="button" id="settings-cancel" class="ml-auto h-10 rounded-none px-4 text-pencil hover:bg-rule/60 hover:text-ink">取消</button>
+        <button type="submit" class="h-10 rounded-none bg-ink px-5 text-sheet hover:bg-ink/85">
+          <i class="fa-solid fa-check mr-1" aria-hidden="true"></i>儲存
+        </button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>

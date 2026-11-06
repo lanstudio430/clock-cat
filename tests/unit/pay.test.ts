@@ -108,13 +108,21 @@ describe('正職：國定假日', () => {
     expect(line(result, 'over-eight')).toBeUndefined();
   });
 
-  it('超過 8 小時：前 2 小時 ×1.34、其後 ×1.67，超出的部分不重複算進平日加班', () => {
-    // 做 13 小時：前 8 小時算進平日時數；多出 5 小時 = 2×1.34 + 3×1.67 = 7.69 個時薪
+  it('超過 8 小時：整天時數都算進平日時數，超出應上班時數的部分併入加班費 ×1.34', () => {
+    // 做 13 小時、應上班 8 小時：多出 5 小時算加班費 = 5 × 150 × 1.34 = 1005
     const result = computePay(pay(), month(day([7, 20], '國定假日')), 8);
-    expect(result.overtimeHours).toBe(0);
+    expect(result.overtimeHours).toBe(5);
+    expect(line(result, 'overtime')!.amount).toBe(1005);
     expect(line(result, 'holiday')!.amount).toBe(1200);
-    expect(line(result, 'over-eight')!.amount).toBe(toMoney(7.69 * 150)); // 1153.5 → 1154
-    expect(toMoney(7.69 * 150)).toBe(1154);
+    expect(line(result, 'over-eight')).toBeUndefined();
+  });
+
+  it('超過 8 小時但整個月還沒做滿應上班時數，就沒有加班費', () => {
+    const result = computePay(pay(), month(day([7, 20], '國定假日')), 20);
+    expect(result.overtimeHours).toBe(0);
+    expect(result.shortfallHours).toBe(7);
+    expect(line(result, 'overtime')).toBeUndefined();
+    expect(line(result, 'over-eight')).toBeUndefined();
   });
 
   it('每天各自計算，一天不滿 8 小時就沒有超時', () => {
@@ -161,7 +169,7 @@ describe('正職：休假（休息日、空班日）', () => {
 });
 
 describe('正職：例假', () => {
-  it('出勤加發一日工資，時數不算進平日時數，超過 8 小時依國定假日規則', () => {
+  it('出勤加發一日工資，時數不算進平日時數，超過 8 小時前 2 小時 ×1.34、其後 ×1.67', () => {
     const result = computePay(pay(), month(day([7, 19], '例假')), 0); // 12 小時
     expect(line(result, 'leave')!.amount).toBe(1200);
     expect(result.overtimeHours).toBe(0);

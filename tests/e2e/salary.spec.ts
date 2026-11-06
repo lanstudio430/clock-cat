@@ -416,14 +416,14 @@ test('國定假日、休假、例假的加給', async ({ app, backend, page }) =
   ], { '2026-11': 20 });
   await app.open();
 
-  // 平日 12 + 國定假日前 8 小時 = 20 小時，剛好 = 應上班時數，沒有平日加班
-  await expect(money(page, 'overtime')).toHaveCount(0);
+  // 平日 12 + 國定假日 11.75 = 23.75 小時，比應上班 20 小時多 3.75 小時，併入加班費
+  await expect(money(page, 'overtime')).toHaveText('NT$ 754'); // 3.75 × 150 × 1.34 = 753.75
   await expect(money(page, 'holiday')).toHaveText('NT$ 1,200'); // 1 天 × 8 × 150
   await expect(money(page, 'leave')).toHaveText('NT$ 1,200');
-  await expect(money(page, 'over-eight')).toHaveText('NT$ 840'); // 國定假日多 3.75 小時 (2×1.34 + 1.75×1.67) × 150
+  await expect(money(page, 'over-eight')).toHaveCount(0); // 例假只做 4 小時
   await expect(money(page, 'rest')).toHaveText('NT$ 1,154'); // (2×1.34 + 3×1.67) × 150 = 1153.5
   await expect(card(page)).toContainText('1 天共 5 小時');
-  await expect(netPay(page)).toHaveText('NT$ 40,394'); // 36,000 + 1,200 + 1,200 + 840 + 1,154
+  await expect(netPay(page)).toHaveText('NT$ 40,308'); // 36,000 + 754 + 1,200 + 1,200 + 1,154
 });
 
 test('工讀生：時薪 × 工時，低於基本工資會提醒', async ({ app, backend, page }) => {

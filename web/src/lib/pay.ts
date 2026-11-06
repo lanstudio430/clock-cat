@@ -32,7 +32,7 @@ const REST_DAY_TIERS: Tier[] = [
   { hours: Infinity, rate: 2.67 },
 ];
 
-/** 國定假日、例假出勤超過 8 小時的部分，每天各自計算：前 2 小時、其後 */
+/** 例假出勤超過 8 小時的部分，每天各自計算：前 2 小時、其後 */
 const OVER_EIGHT_TIERS: Tier[] = [
   { hours: 2, rate: 1.34 },
   { hours: Infinity, rate: 1.67 },
@@ -336,9 +336,9 @@ function tierUnits(hours: number, tiers: Tier[]): number {
  * 計算一個月的薪資。
  *
  * 正職（月薪制、變形工時）：本薪已經包含應上班時數。
- * - 平日（沒有假別）與國定假日前 8 小時算進「平日時數」，超過應上班時數的部分 ×1.34；
- * - 國定假日出勤加發一日工資（8 小時），超過 8 小時的部分每天各自按 ×1.34、×1.67；
- * - 例假出勤同國定假日，但時數不算進平日時數；
+ * - 平日（沒有假別）與國定假日的時數都算進「平日時數」，超過應上班時數的部分 ×1.34（加班費）；
+ * - 國定假日出勤另加發一日工資（8 小時）；超過 8 小時的部分不另算，已經在平日時數裡併入加班費；
+ * - 例假出勤加發一日工資，時數不算進平日時數，超過 8 小時的部分每天各自按 ×1.34、×1.67；
  * - 休假（休息日）出勤每天各自按 ×1.34、×1.67、×2.67 分段，時數不算進平日時數。
  *
  * 工讀生：全部時數 × 時薪，不另外加成。
@@ -351,7 +351,7 @@ export function computePay(settings: MonthPay, entries: Record<string, Entry>, r
   const additions: PayLine[] = [];
 
   let totalHours = 0;
-  let regularHours = 0; // 平日與國定假日前 8 小時
+  let regularHours = 0; // 平日與國定假日
   let holidayDays = 0;
   let leaveDays = 0;
   let overEightHours = 0;
@@ -370,13 +370,12 @@ export function computePay(settings: MonthPay, entries: Record<string, Entry>, r
       restDays++;
       restHours += hours;
       restUnits += tierUnits(hours, REST_DAY_TIERS);
-    } else if (entry.dayType === '國定假日' || entry.dayType === '例假') {
-      if (entry.dayType === '國定假日') {
-        holidayDays++;
-        regularHours += Math.min(hours, DAY_HOURS);
-      } else {
-        leaveDays++;
-      }
+    } else if (entry.dayType === '國定假日') {
+      // 整天的時數都算進平日時數，超過 8 小時的部分跟著平日加班一起算加班費
+      holidayDays++;
+      regularHours += hours;
+    } else if (entry.dayType === '例假') {
+      leaveDays++;
       const extra = Math.max(hours - DAY_HOURS, 0);
       overEightHours += extra;
       overEightUnits += tierUnits(extra, OVER_EIGHT_TIERS);
@@ -428,7 +427,7 @@ export function computePay(settings: MonthPay, entries: Record<string, Entry>, r
     if (overEightHours > 0) {
       additions.push({
         key: 'over-eight',
-        label: '假日超過 8 小時',
+        label: '例假超過 8 小時',
         detail: `共 ${formatNumber(overEightHours)} 小時（每天前 2 小時 ×1.34，其後 ×1.67）`,
         amount: money(overEightUnits * hourly),
       });

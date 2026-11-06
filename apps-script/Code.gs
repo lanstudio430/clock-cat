@@ -24,6 +24,7 @@ var USER_SHEET = '使用者';
 var USER_HEADERS = ['名稱', '密鑰', '試算表'];
 var MIN_KEY_LENGTH = 16;
 var NEW_SHEET_PREFIX = '工時貓 - ';
+var MOVE_ATTEMPTS = 3;
 
 // 這次請求是誰、讀寫哪一份試算表；每次請求都是新的執行環境，不會留到下一次
 var account_ = null;
@@ -73,6 +74,9 @@ function setupApiKey() {
  * 建立「使用者」工作表，並替有填試算表、但密鑰空白的列產生密鑰。
  */
 function setupUsers() {
+  // 授權畫面可以只勾部分權限；少了哪一項就停下來重新要求，
+  // 不然網頁應用程式執行到移動試算表時才會因為沒有雲端硬碟權限而失敗
+  ScriptApp.requireAllScopes(ScriptApp.AuthMode.FULL);
   setupApiKey();
   var count = withLock_(function () {
     var sheet = getSheet_(USER_SHEET, USER_HEADERS, SpreadsheetApp.getActiveSpreadsheet());
@@ -184,24 +188,32 @@ function createUser(name) {
     users.getRange(users.getLastRow() + 1, 1, 1, USER_HEADERS.length)
       .setNumberFormat('@')
       .setValues([[clean, key, created.getId()]]);
-    return { name: clean, key: key, url: sheetUrl_(created.getId()), folder: moveNextToMain_(created.getId()) };
+    var moved = moveNextToMain_(created.getId());
+    return { name: clean, key: key, url: sheetUrl_(created.getId()), folder: moved.folder, folderError: moved.error };
   });
 }
 
 /**
- * 新建的試算表一開始在雲端硬碟根目錄；移到主控試算表所在的資料夾，回傳資料夾名稱。
- * 沒有那個資料夾的編輯權時留在原地、回傳 null，使用者照樣建立成功。
+ * 新建的試算表一開始在雲端硬碟根目錄；移到主控試算表所在的資料夾。
+ * 剛建立的檔案有時要等一下雲端硬碟才找得到，所以失敗會重試幾次。
+ * 還是失敗就留在原地，回傳 {folder: null, error: 原因}，使用者照樣建立成功。
  */
 function moveNextToMain_(id) {
-  try {
-    var parents = DriveApp.getFileById(SpreadsheetApp.getActiveSpreadsheet().getId()).getParents();
-    if (!parents.hasNext()) return null;
-    var folder = parents.next();
-    DriveApp.getFileById(id).moveTo(folder);
-    return folder.getName();
-  } catch (error) {
-    return null;
+  var reason = '';
+  for (var attempt = 1; attempt <= MOVE_ATTEMPTS; attempt++) {
+    try {
+      var parents = DriveApp.getFileById(SpreadsheetApp.getActiveSpreadsheet().getId()).getParents();
+      if (!parents.hasNext()) return { folder: null, error: '主控試算表不在任何資料夾裡' };
+      var folder = parents.next();
+      DriveApp.getFileById(id).moveTo(folder);
+      return { folder: folder.getName(), error: null };
+    } catch (error) {
+      reason = String(error && error.message || error);
+      console.error('移動新試算表失敗（第 ' + attempt + ' 次）：' + reason);
+      if (attempt < MOVE_ATTEMPTS) Utilities.sleep(1000 * attempt);
+    }
   }
+  return { folder: null, error: reason };
 }
 
 function parseJson_(text) {

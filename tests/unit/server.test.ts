@@ -477,14 +477,25 @@ describe('Code.gs 多使用者', () => {
     }
   });
 
-  it('沒辦法移到資料夾時，留在根目錄，使用者照樣建立', () => {
+  it('沒辦法移到資料夾時，重試後留在根目錄並回傳原因，使用者照樣建立', () => {
     const { backend, post } = setup();
-    backend.mock.failMoves(true);
+    backend.mock.failMoves();
     const created = post({ key: TEST_KEY, action: 'createUser', name: '阿明' }).data;
     expect(created.folder).toBeNull();
+    expect(created.folderError).toBe('Access denied: DriveApp');
+    expect(backend.mock.sleeps).toEqual([1000, 2000]); // 試 3 次，中間等兩次
     const id = created.url.match(/\/d\/([^/]+)\//)[1];
     expect(backend.mock.spreadsheets[id].folder).toBe('我的雲端硬碟');
     expect(post({ key: created.key, ...dayOff }).ok).toBe(true);
+  });
+
+  it('移動失敗一次，重試後成功', () => {
+    const { backend, post } = setup();
+    backend.mock.failMoves(1);
+    const created = post({ key: TEST_KEY, action: 'createUser', name: '阿明' }).data;
+    expect(created.folder).toBe('工時貓');
+    expect(created.folderError).toBeNull();
+    expect(backend.mock.sleeps).toEqual([1000]);
   });
 
   it('setupUsers 建立使用者工作表並補上空白的密鑰', () => {

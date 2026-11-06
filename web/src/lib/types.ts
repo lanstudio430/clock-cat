@@ -36,6 +36,8 @@ export interface RemoteUser {
   url: string;
   /** 只有剛建立時有：試算表放在哪個資料夾；null 代表沒能移過去，留在雲端硬碟根目錄 */
   folder?: string | null;
+  /** 沒能移過去的原因（後端回傳的錯誤訊息） */
+  folderError?: string | null;
 }
 
 export type JobType = 'fulltime' | 'parttime';

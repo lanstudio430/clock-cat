@@ -81,7 +81,9 @@ export function createMock() {
   spreadsheet.folder = '工時貓';
   const spreadsheets: Record<string, MockSpreadsheet> = { [MAIN_ID]: spreadsheet };
   let created = 0;
-  let moveFails = false;
+  /** 接下來幾次移動會失敗；Infinity 代表一直失敗 */
+  let moveFails = 0;
+  const sleeps: number[] = [];
 
   // 只模擬用到的 DriveApp：查檔案所在的資料夾、移動檔案
   const driveFile = (id: string) => {
@@ -93,7 +95,10 @@ export function createMock() {
         return { hasNext: () => !done, next: () => ((done = true), { name: file.folder, getName: () => file.folder }) };
       },
       moveTo(folder: { name: string }) {
-        if (moveFails) throw new Error('Access denied: DriveApp');
+        if (moveFails > 0) {
+          moveFails--;
+          throw new Error('Access denied: DriveApp');
+        }
         file.folder = folder.name;
       },
     };
@@ -103,9 +108,10 @@ export function createMock() {
     sheets,
     props,
     spreadsheets,
-    /** 模擬沒有資料夾編輯權，移動檔案失敗 */
-    failMoves(value: boolean) {
-      moveFails = value;
+    sleeps,
+    /** 模擬移動檔案失敗：接下來 times 次失敗，預設一直失敗 */
+    failMoves(times = Infinity) {
+      moveFails = times;
     },
     /** 新增一份可以用 ID 打開的試算表 */
     addSpreadsheet(id: string) {
@@ -116,6 +122,7 @@ export function createMock() {
     },
     globals: {
       DriveApp: { getFileById: driveFile },
+      ScriptApp: { AuthMode: { FULL: 'FULL' }, requireAllScopes() {} },
       SpreadsheetApp: {
         getActiveSpreadsheet: () => spreadsheet,
         openById: (id: string) => {
@@ -147,7 +154,7 @@ export function createMock() {
         MimeType: { JSON: 'JSON' },
         createTextOutput: (text: string) => ({ getContent: () => text, setMimeType() { return this; } }),
       },
-      Utilities: { getUuid: () => crypto.randomUUID() },
+      Utilities: { getUuid: () => crypto.randomUUID(), sleep: (ms: number) => void sleeps.push(ms) },
     },
   };
 }

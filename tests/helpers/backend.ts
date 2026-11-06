@@ -18,7 +18,7 @@ export interface EntryRow {
 
 export function createBackend({ key = TEST_KEY }: { key?: string | null } = {}) {
   const mock = createMock();
-  const context = vm.createContext({ ...mock.globals, console: { log() {} }, crypto: globalThis.crypto });
+  const context = vm.createContext({ ...mock.globals, console: { log() {}, error() {} }, crypto: globalThis.crypto });
   vm.runInContext(CODE, context);
   if (key) mock.props.API_KEY = key;
 

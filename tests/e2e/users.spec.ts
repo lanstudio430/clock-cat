@@ -169,6 +169,18 @@ test('從這台裝置移除使用者，要按兩次', async ({ app, backend, pag
   expect(await page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith('clockcat:u:')))).toEqual([]);
 });
 
+test('新試算表沒能移到資料夾時，顯示原因', async ({ app, backend, page }) => {
+  backend.mock.failMoves();
+  await app.open();
+  await page.getByRole('button', { name: '使用者與連線設定' }).click();
+  const dialog = dialogOf(page);
+  await dialog.getByRole('button', { name: '多位使用者' }).click();
+  await dialog.getByRole('button', { name: '建立新使用者' }).click();
+  await dialog.getByLabel('新使用者名稱').fill('小華');
+  await dialog.getByRole('button', { name: '建立', exact: true }).click();
+  await expect(dialog.getByRole('status')).toContainText('留在雲端硬碟根目錄：Access denied: DriveApp');
+});
+
 test('使用者的試算表打不開時說明原因', async ({ app, backend, page }) => {
   addUser(backend, '小華', HUA_KEY, HUA_SHEET);
   delete backend.mock.spreadsheets[HUA_SHEET];

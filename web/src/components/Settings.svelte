@@ -170,7 +170,9 @@
       {#if created}
         <p class="created" role="status">
           <Icon name="check" />已建立「{created.name}」
-          {#if created.folder === null}<small>（留在雲端硬碟根目錄）</small>{/if}
+          {#if created.folder === null}
+            <small>（留在雲端硬碟根目錄{created.folderError ? `：${created.folderError}` : ''}）</small>
+          {/if}
           <a class="link" href={created.url} target="_blank" rel="noopener noreferrer"><Icon name="externalLink" />開啟試算表</a>
         </p>
       {/if}

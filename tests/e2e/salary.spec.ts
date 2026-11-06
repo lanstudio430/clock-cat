@@ -579,7 +579,7 @@ test('換成另一份試算表時，本機的薪資設定也清掉，改拿新�
   await expect(app.stamp).toHaveText('已同步');
   // 這裡的假後端仍是同一份，所以會重新取回；重點是沒有沿用舊試算表留下的本機快取來蓋過它
   await expect(netPay(page)).toBeVisible();
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('clockcat:settings')!).url)).toBe('https://script.google.com/macros/s/OTHER/exec');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('clockcat:profiles')!).list[0].url)).toBe('https://script.google.com/macros/s/OTHER/exec');
 });
 
 test('離線時設定先存在本機，恢復連線後送出', async ({ app, backend, page }) => {

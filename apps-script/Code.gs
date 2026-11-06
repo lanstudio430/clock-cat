@@ -20,8 +20,17 @@ var MAX_MONEY = 10000000;
 var MAX_PAY_ITEMS = 20;
 var MAX_CATEGORIES = 40;
 var MAX_NAME_LENGTH = 20;
+var USER_SHEET = '使用者';
+var USER_HEADERS = ['名稱', '密鑰', '試算表'];
+var MIN_KEY_LENGTH = 16;
+var NEW_SHEET_PREFIX = '工時貓 - ';
+
+// 這次請求是誰、讀寫哪一份試算表；每次請求都是新的執行環境，不會留到下一次
+var account_ = null;
+var spreadsheet_ = null;
 
 var ACTIONS = {
+  getAccount: function () { return { name: account_.name, admin: account_.admin }; },
   getMonths: function (request) { return getMonths(request.months); },
   saveEntry: function (request) { return saveEntry(request.entry); },
   deleteEntry: function (request) { deleteEntry(request.date); return null; },
@@ -29,6 +38,12 @@ var ACTIONS = {
   getPayData: function () { return getPayData(); },
   savePayCatalog: function (request) { return savePayCatalog(request.catalog); },
   savePayMonth: function (request) { return savePayMonth(request.month, request.pay); }
+};
+
+/** 只有管理員密鑰（指令碼屬性的 API_KEY）可以用 */
+var ADMIN_ACTIONS = {
+  listUsers: function () { return listUsers(); },
+  createUser: function (request) { return createUser(request.name); }
 };
 
 /** 連線測試：不需要密鑰，也不回傳任何資料。 */
@@ -46,25 +61,146 @@ function setupApiKey() {
   var properties = PropertiesService.getScriptProperties();
   var key = properties.getProperty(API_KEY_PROPERTY);
   if (!key) {
-    key = (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, '');
+    key = newKey_();
     properties.setProperty(API_KEY_PROPERTY, key);
   }
   console.log('API_KEY: ' + key);
 }
 
+/**
+ * 多使用者：在 Apps Script 編輯器執行一次（也會要求開啟其他試算表的授權），
+ * 之後也能從試算表的「工時貓」選單執行。
+ * 建立「使用者」工作表，並替有填試算表、但密鑰空白的列產生密鑰。
+ */
+function setupUsers() {
+  setupApiKey();
+  var count = withLock_(function () {
+    var sheet = getSheet_(USER_SHEET, USER_HEADERS, SpreadsheetApp.getActiveSpreadsheet());
+    var filled = 0;
+    readRows_(sheet).forEach(function (row, index) {
+      if (row[2] && !row[1]) {
+        sheet.getRange(index + 2, 2).setNumberFormat('@').setValues([[newKey_()]]);
+        filled++;
+      }
+    });
+    return filled;
+  });
+  SpreadsheetApp.getActiveSpreadsheet().toast('補上了 ' + count + ' 個密鑰', '工時貓');
+  console.log('補上了 ' + count + ' 個密鑰');
+}
+
+/** 打開主控試算表時加上選單 */
+function onOpen() {
+  SpreadsheetApp.getUi().createMenu('工時貓').addItem('補上使用者密鑰', 'setupUsers').addToUi();
+}
+
+function newKey_() {
+  return (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, '');
+}
+
 function handleRequest_(body) {
   try {
-    var expected = PropertiesService.getScriptProperties().getProperty(API_KEY_PROPERTY);
-    if (!expected) return failure_('not_configured', '尚未設定密鑰，請在 Apps Script 執行 setupApiKey');
+    var adminKey = PropertiesService.getScriptProperties().getProperty(API_KEY_PROPERTY);
+    if (!adminKey) return failure_('not_configured', '尚未設定密鑰，請在 Apps Script 執行 setupApiKey');
 
     var request = parseJson_(body);
-    if (!request || !isSameText_(request.key, expected)) return failure_('unauthorized', '密鑰不正確');
-    if (!Object.prototype.hasOwnProperty.call(ACTIONS, request.action)) {
+    var account = request && findAccount_(request.key, adminKey);
+    if (!account) return failure_('unauthorized', '密鑰不正確');
+
+    var isAdminAction = Object.prototype.hasOwnProperty.call(ADMIN_ACTIONS, request.action);
+    if (!isAdminAction && !Object.prototype.hasOwnProperty.call(ACTIONS, request.action)) {
       return failure_('bad_request', '不支援的操作：' + request.action);
     }
-    return { ok: true, data: ACTIONS[request.action](request) };
+    if (isAdminAction && !account.admin) return failure_('forbidden', '只有管理員密鑰可以管理使用者');
+
+    account_ = account;
+    spreadsheet_ = account.spreadsheet;
+    return { ok: true, data: (isAdminAction ? ADMIN_ACTIONS : ACTIONS)[request.action](request) };
   } catch (error) {
     return failure_(error.code || 'rejected', error.message);
+  }
+}
+
+/**
+ * 依密鑰找出使用者：管理員密鑰讀寫這份（主控）試算表，
+ * 「使用者」工作表裡的密鑰讀寫該列指定的試算表。找不到回傳 null。
+ */
+function findAccount_(key, adminKey) {
+  if (isSameText_(key, adminKey)) {
+    return { name: null, admin: true, spreadsheet: SpreadsheetApp.getActiveSpreadsheet() };
+  }
+  if (typeof key !== 'string' || key.length < MIN_KEY_LENGTH) return null;
+
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(USER_SHEET);
+  var rows = sheet ? readRows_(sheet) : [];
+  var match = null;
+  // 每一列都比對完，不提早結束，避免從回應時間推測
+  rows.forEach(function (row) {
+    if (row[1].length >= MIN_KEY_LENGTH && isSameText_(key, row[1]) && !match) match = row;
+  });
+  if (!match) return null;
+  return { name: match[0], admin: false, spreadsheet: openUserSpreadsheet_(match[2]) };
+}
+
+/** 「試算表」欄可以填 ID 或整個網址 */
+function spreadsheetId_(text) {
+  var match = String(text).match(/\/d\/([A-Za-z0-9_-]+)/);
+  var id = match ? match[1] : String(text).trim();
+  return /^[A-Za-z0-9_-]{20,}$/.test(id) ? id : '';
+}
+
+function openUserSpreadsheet_(text) {
+  var id = spreadsheetId_(text);
+  try {
+    if (id) return SpreadsheetApp.openById(id);
+  } catch (error) {
+    // 下面統一回報
+  }
+  var failed = new Error('打不開這位使用者的試算表，請確認「使用者」工作表裡的試算表正確，且已分享給部署的帳號');
+  failed.code = 'no_sheet';
+  throw failed;
+}
+
+function sheetUrl_(id) {
+  return 'https://docs.google.com/spreadsheets/d/' + id + '/edit';
+}
+
+/** 列出「使用者」工作表裡的使用者（只給管理員） */
+function listUsers() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(USER_SHEET);
+  return (sheet ? readRows_(sheet) : [])
+    .filter(function (row) { return row[0] && row[1].length >= MIN_KEY_LENGTH && spreadsheetId_(row[2]); })
+    .map(function (row) { return { name: row[0], key: row[1], url: sheetUrl_(spreadsheetId_(row[2])) }; });
+}
+
+/** 建立新的試算表與密鑰，加到「使用者」工作表（只給管理員） */
+function createUser(name) {
+  var clean = typeof name === 'string' ? name.trim() : '';
+  if (!clean || clean.length > MAX_NAME_LENGTH) throw new Error('使用者名稱需要 1 到 ' + MAX_NAME_LENGTH + ' 個字');
+  return withLock_(function () {
+    var users = getSheet_(USER_SHEET, USER_HEADERS, SpreadsheetApp.getActiveSpreadsheet());
+    var created = SpreadsheetApp.create(NEW_SHEET_PREFIX + clean);
+    var key = newKey_();
+    users.getRange(users.getLastRow() + 1, 1, 1, USER_HEADERS.length)
+      .setNumberFormat('@')
+      .setValues([[clean, key, created.getId()]]);
+    return { name: clean, key: key, url: sheetUrl_(created.getId()), folder: moveNextToMain_(created.getId()) };
+  });
+}
+
+/**
+ * 新建的試算表一開始在雲端硬碟根目錄；移到主控試算表所在的資料夾，回傳資料夾名稱。
+ * 沒有那個資料夾的編輯權時留在原地、回傳 null，使用者照樣建立成功。
+ */
+function moveNextToMain_(id) {
+  try {
+    var parents = DriveApp.getFileById(SpreadsheetApp.getActiveSpreadsheet().getId()).getParents();
+    if (!parents.hasNext()) return null;
+    var folder = parents.next();
+    DriveApp.getFileById(id).moveTo(folder);
+    return folder.getName();
+  } catch (error) {
+    return null;
   }
 }
 
@@ -223,8 +359,9 @@ function saveRequiredHours(month, value) {
   return hours;
 }
 
-function getSheet_(name, headers) {
-  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+/** 沒指定試算表時，用這次請求的使用者的試算表 */
+function getSheet_(name, headers, target) {
+  var spreadsheet = target || currentSpreadsheet_();
   var sheet = spreadsheet.getSheetByName(name);
   if (sheet) return sheet;
 
@@ -232,6 +369,10 @@ function getSheet_(name, headers) {
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
   sheet.setFrozenRows(1);
   return sheet;
+}
+
+function currentSpreadsheet_() {
+  return spreadsheet_ || SpreadsheetApp.getActiveSpreadsheet();
 }
 
 function readRows_(sheet) {
@@ -283,7 +424,7 @@ function withLock_(callback) {
 /** 把舊版「日期、上班、下班、假別」的班表升級成新欄位，舊時間視為實際上下班時間。 */
 function upgradeLegacySheet_() {
   withLock_(function () {
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHIFT_SHEET);
+    var sheet = currentSpreadsheet_().getSheetByName(SHIFT_SHEET);
     if (!sheet || sheet.getRange(1, 2).getDisplayValue() !== '上班') return;
 
     var rows = readRows_(sheet).map(function (row) {

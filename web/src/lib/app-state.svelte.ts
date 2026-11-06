@@ -5,11 +5,14 @@ import {
   computePay, defaultCatalog, normalizeCatalog, normalizeMonthPay, normalizePayData, resolveMonthPay, validateCatalog,
   validateMonthPay,
 } from './pay';
-import { KEYS, store } from './storage';
-import type { Entry, MonthData, MonthPay, Op, PayCatalog, Settings } from './types';
+import { KEYS, MAIN_PROFILE, keysFor, store, type ProfileKeys } from './storage';
+import type { Entry, MonthData, MonthPay, Op, PayCatalog, Profile, RemoteUser, Settings } from './types';
 
 export const API_URL_PATTERN = /^https:\/\/script\.google\.com\/.+\/exec$/;
 export const MAX_REQUIRED_HOURS = 744;
+export const MAX_PROFILE_NAME = 20;
+/** 第一位使用者的預設名稱 */
+export const DEFAULT_PROFILE_NAME = '我';
 const STALE_AFTER_MS = 30_000;
 const TOAST_MS = 3_000;
 
@@ -25,15 +28,47 @@ export interface Toast {
   text: string;
 }
 
-function readSettings(): Settings | null {
-  const saved = store.get<Settings>(KEYS.settings);
-  return saved && typeof saved.url === 'string' && typeof saved.key === 'string' ? saved : null;
+interface ProfileList {
+  active: string;
+  list: Profile[];
 }
 
-function readQueue(): Op[] {
-  const saved = store.get<Op[]>(KEYS.queue);
+const isSettings = (value: unknown): value is Settings =>
+  Boolean(value) && typeof (value as Settings).url === 'string' && typeof (value as Settings).key === 'string';
+
+const isProfile = (value: unknown): value is Profile =>
+  isSettings(value) && typeof (value as Profile).id === 'string' && typeof (value as Profile).name === 'string';
+
+/**
+ * 這台裝置上的使用者。舊版只有一組連線設定：第一次升級時變成第一位使用者，
+ * 它沿用舊的鍵名，所以快取、待同步變更和薪資設定都不用搬。
+ */
+function readProfiles(): ProfileList {
+  const saved = store.get<ProfileList>(KEYS.profiles);
+  const list = Array.isArray(saved?.list) ? saved.list.filter(isProfile) : [];
+  if (list.length) return { active: list.some((p) => p.id === saved!.active) ? saved!.active : list[0].id, list };
+
+  const legacy = store.get<Settings>(KEYS.settings);
+  if (!isSettings(legacy)) return { active: MAIN_PROFILE, list: [] };
+  const migrated = { active: MAIN_PROFILE, list: [{ id: MAIN_PROFILE, name: DEFAULT_PROFILE_NAME, url: legacy.url, key: legacy.key }] };
+  store.set(KEYS.profiles, migrated);
+  return migrated;
+}
+
+function readQueue(keys: ProfileKeys): Op[] {
+  const saved = store.get<Op[]>(keys.queue);
   return Array.isArray(saved) ? saved : [];
 }
+
+function clearProfileStorage(keys: ProfileKeys) {
+  store.remove(keys.queue);
+  store.remove(keys.pay);
+  store.removeWithPrefix(keys.monthPrefix);
+}
+
+const newProfileId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const initialProfiles = readProfiles();
+const initialPay = normalizePayData(store.get(keysFor(initialProfiles.active).pay));
 
 /** 薪資設定的變更：整份取代，重送沒關係 */
 const isPayOp = (op: Op) => op.type === 'savePayCatalog' || op.type === 'savePayMonth';
@@ -50,8 +85,10 @@ const asApiError = (error: unknown) =>
 export class AppState {
   year = $state(new Date().getFullYear());
   month = $state(new Date().getMonth());
-  settings = $state<Settings | null>(readSettings());
-  queue = $state<Op[]>(readQueue());
+  /** 這台裝置上的使用者，以及現在用的是哪一位 */
+  profiles = $state<Profile[]>(initialProfiles.list);
+  profileId = $state(initialProfiles.active);
+  queue = $state<Op[]>(readQueue(keysFor(initialProfiles.active)));
   months = $state<Record<string, MonthData | null>>({});
   loading = $state<'' | 'loading' | 'updating'>('');
   loadError = $state<ApiError | null>(null);
@@ -63,21 +100,35 @@ export class AppState {
   payDialogMonth = $state<string | null>(null);
   categoriesOpen = $state(false);
   /** 每個月各自的薪資設定（key 是 yyyy-MM）。以試算表為準，本機只是快取 */
-  payMonths = $state<Record<string, MonthPay>>(normalizePayData(store.get(KEYS.pay)).months);
+  payMonths = $state<Record<string, MonthPay>>(initialPay.months);
   /** 使用者自訂過的常用類別；還沒自訂過是 null，使用內建的預設 */
-  customCatalog = $state<PayCatalog | null>(normalizePayData(store.get(KEYS.pay)).catalog);
+  customCatalog = $state<PayCatalog | null>(initialPay.catalog);
   /** 後端還沒更新（不認得薪資設定的動作）時，薪資設定只存在這台裝置 */
   payBackend = $state<'unknown' | 'ok' | 'unsupported'>('unknown');
+  /** 後端認不認得多使用者的動作；還沒更新的後端不能在 App 裡建立使用者 */
+  accountBackend = $state<'unknown' | 'ok' | 'unsupported'>('unknown');
   toast = $state<Toast | null>(null);
   celebrate = $state(0);
 
   #requestId = 0;
+  /** 每次切換使用者就加一；切換前發出的請求回來時，結果不採用 */
+  #epoch = 0;
   #syncedOps = 0;
   #lastRefresh = 0;
   #flushing: Promise<void> | null = null;
   #toastTimer: ReturnType<typeof setTimeout> | undefined;
   #toastId = 0;
 
+  get profile(): Profile | null {
+    return this.profiles.find((profile) => profile.id === this.profileId) ?? null;
+  }
+  get settings(): Settings | null {
+    const profile = this.profile;
+    return profile ? { url: profile.url, key: profile.key } : null;
+  }
+  get #keys() {
+    return keysFor(this.profileId);
+  }
   get monthKey() {
     return monthKeyOf(this.year, this.month);
   }
@@ -162,17 +213,17 @@ export class AppState {
 
   #ensure(key: string) {
     if (key in this.months) return;
-    const saved = store.get<MonthData>(KEYS.monthPrefix + key);
+    const saved = store.get<MonthData>(this.#keys.monthPrefix + key);
     this.months[key] = saved && saved.entries ? saved : null;
   }
 
   #putMonth(key: string, data: MonthData) {
     this.months[key] = data;
-    store.set(KEYS.monthPrefix + key, $state.snapshot(data));
+    store.set(this.#keys.monthPrefix + key, $state.snapshot(data));
   }
 
   #persistQueue() {
-    store.set(KEYS.queue, $state.snapshot(this.queue));
+    store.set(this.#keys.queue, $state.snapshot(this.queue));
   }
 
   // ---- 載入 ----
@@ -203,13 +254,16 @@ export class AppState {
 
   // 先送出待處理的變更，再抓前後各一個月，之後切換月份就不用等
   async #refreshMonths(centerKey: string) {
+    const epoch = this.#epoch;
     await this.flushQueue();
+    if (epoch !== this.#epoch) return;
 
     const keys = [shiftMonthKey(centerKey, -1), centerKey, shiftMonthKey(centerKey, 1)];
     let months: Record<string, ServerMonth> = {};
     for (let attempt = 0; attempt < 3; attempt++) {
       const syncedBefore = this.#syncedOps;
       months = await callApi<Record<string, ServerMonth>>(this.settings!, 'getMonths', { months: keys });
+      if (epoch !== this.#epoch) return;
       // 抓取期間有變更完成，結果可能是舊的，再抓一次
       if (syncedBefore === this.#syncedOps) break;
     }
@@ -221,15 +275,31 @@ export class AppState {
       this.#putMonth(key, data);
     }
     this.#lastRefresh = Date.now();
-    await this.#refreshPay();
+    await this.#refreshPay(epoch);
+    await this.#refreshAccount(epoch);
+  }
+
+  /** 問後端這把密鑰是不是管理員；每位使用者切換進來時問一次就好 */
+  async #refreshAccount(epoch: number) {
+    if (this.accountBackend !== 'unknown') return;
+    try {
+      const account = await callApi<{ admin: boolean }>(this.settings!, 'getAccount', {});
+      if (epoch !== this.#epoch) return;
+      this.accountBackend = 'ok';
+      this.#updateProfile(this.profileId, { admin: account?.admin === true });
+    } catch (error) {
+      if (epoch !== this.#epoch) return;
+      if (error instanceof ApiError && error.code === 'bad_request') this.accountBackend = 'unsupported';
+    }
   }
 
   /** 以試算表的薪資設定為準；失敗不影響月曆，下次再試。 */
-  async #refreshPay() {
+  async #refreshPay(epoch: number) {
     if (this.payBackend === 'unsupported' || this.queue.some(isPayOp)) return;
     const syncedBefore = this.#syncedOps;
     try {
       const raw = await callApi<unknown>(this.settings!, 'getPayData', {});
+      if (epoch !== this.#epoch) return;
       this.payBackend = 'ok';
       // 抓取期間本機又改了設定，這份是舊的，不要蓋掉
       if (syncedBefore !== this.#syncedOps || this.queue.some(isPayOp)) return;
@@ -251,12 +321,13 @@ export class AppState {
       this.payMonths = remote.months;
       this.#persistPay();
     } catch (error) {
+      if (epoch !== this.#epoch) return;
       if (error instanceof ApiError && error.code === 'bad_request') this.payBackend = 'unsupported';
     }
   }
 
   #persistPay() {
-    store.set(KEYS.pay, { catalog: $state.snapshot(this.customCatalog), months: $state.snapshot(this.payMonths) });
+    store.set(this.#keys.pay, { catalog: $state.snapshot(this.customCatalog), months: $state.snapshot(this.payMonths) });
   }
 
   // ---- 變更與同步 ----
@@ -280,20 +351,25 @@ export class AppState {
   flushQueue(): Promise<void> {
     if (!this.#flushing) {
       this.syncing = true;
-      this.#flushing = this.#runQueue().finally(() => {
+      const run: Promise<void> = this.#runQueue(this.#epoch).finally(() => {
+        // 中途切換了使用者時，新的使用者可能已經開始自己的同步，不要動它
+        if (this.#flushing !== run) return;
         this.#flushing = null;
         this.syncing = false;
       });
+      this.#flushing = run;
     }
     return this.#flushing;
   }
 
-  async #runQueue() {
+  async #runQueue(epoch: number) {
     while (this.queue.length && this.isConfigured) {
       const op = $state.snapshot(this.queue[0]) as Op;
       try {
         await this.#send(op);
       } catch (error) {
+        // 已經換成別的使用者：這筆還留在原本那位的佇列裡，換回去時再送
+        if (epoch !== this.#epoch) return;
         const apiError = asApiError(error);
         if (isPayOp(op) && apiError.code === 'bad_request') {
           // 後端還沒更新到有薪資設定的版本：設定留在這台裝置，別卡住其他變更
@@ -315,6 +391,8 @@ export class AppState {
         void this.load({ quiet: true });
         continue;
       }
+      // 已經送到了，但佇列換成別的使用者的；原本那位換回去時會再送一次，重送不會出錯
+      if (epoch !== this.#epoch) return;
       this.queue.shift();
       this.#persistQueue();
       this.#syncedOps++;
@@ -454,34 +532,165 @@ export class AppState {
     this.settingsOpen = false;
   }
 
-  /** 檢查並儲存網址與密鑰；不合規則時回傳錯誤訊息。 */
-  saveSettings(url: string, key: string): string {
+  /** 某位使用者還有幾筆變更沒送出（切換使用者時，其他人的變更留在各自的佇列） */
+  pendingCount(id: string) {
+    return id === this.profileId ? this.queue.length : readQueue(keysFor(id)).length;
+  }
+
+  hasProfile(url: string, key: string) {
+    return this.profiles.some((profile) => profile.url === url && profile.key === key);
+  }
+
+  #persistProfiles() {
+    store.set(KEYS.profiles, { active: this.profileId, list: $state.snapshot(this.profiles) });
+  }
+
+  #updateProfile(id: string, changes: Partial<Profile>) {
+    const index = this.profiles.findIndex((profile) => profile.id === id);
+    if (index < 0) return;
+    this.profiles[index] = { ...this.profiles[index], ...changes };
+    this.#persistProfiles();
+  }
+
+  /**
+   * 新增（id 是 null）或修改一位使用者；不合規則時回傳錯誤訊息。
+   * 新增後會切換過去；修改目前的使用者會重新載入。
+   */
+  saveProfile(id: string | null, name: string, url: string, key: string): string {
+    name = name.trim();
     url = url.trim();
     key = key.trim();
+    if (!name) return '請輸入名稱';
+    if (name.length > MAX_PROFILE_NAME) return `名稱最多 ${MAX_PROFILE_NAME} 個字`;
     if (/^https:\/\/script\.google\.com\/.+\/dev$/.test(url)) return '要用結尾是 /exec 的部署網址，不是 /dev';
     if (!API_URL_PATTERN.test(url)) return '網址需要是 https://script.google.com/… 結尾為 /exec 的部署網址';
     if (!key) return '請輸入密鑰';
 
+    if (id === null) {
+      if (this.hasProfile(url, key)) return '這位使用者已經在這台裝置上了';
+      this.#addProfile(name, url, key);
+      return '';
+    }
+
+    const profile = this.profiles.find((item) => item.id === id);
+    if (!profile) return '';
+    const isActive = id === this.profileId;
     // 換成另一份試算表時，舊的快取與尚未送出的變更都不能帶過去，薪資設定也是各自的
-    if (this.settings && this.settings.url !== url) {
-      this.payMonths = {};
-      this.customCatalog = null;
-      this.payBackend = 'unknown';
-      store.remove(KEYS.pay);
+    if (profile.url !== url) {
+      clearProfileStorage(keysFor(id));
+      if (isActive) {
+        this.queue = [];
+        this.months = {};
+        this.payMonths = {};
+        this.customCatalog = null;
+        this.payBackend = 'unknown';
+      }
     }
-    if (!this.settings || this.settings.url !== url) {
-      this.queue = [];
-      this.#persistQueue();
-      this.months = {};
-      store.removeWithPrefix(KEYS.monthPrefix);
+    const credentialsChanged = profile.url !== url || profile.key !== key;
+    this.#updateProfile(id, { name, url, key, admin: credentialsChanged ? undefined : profile.admin });
+    if (isActive && credentialsChanged) {
+      this.accountBackend = 'unknown';
+      this.syncError = null;
+      this.loadError = null;
+      void this.load();
     }
-    this.settings = { url, key };
-    store.set(KEYS.settings, { url, key });
-    this.syncError = null;
-    this.loadError = null;
-    this.settingsOpen = false;
-    void this.load();
+    if (isActive) this.settingsOpen = false;
     return '';
+  }
+
+  #addProfile(name: string, url: string, key: string, { activate = true } = {}) {
+    // 第一位使用者用舊版的鍵名，和升級上來的裝置一致
+    const id = this.profiles.length ? newProfileId() : MAIN_PROFILE;
+    const keys = keysFor(id);
+    if (id === MAIN_PROFILE) {
+      // 第一次連線：沒連線前先設定好的薪資要留著，連上後送到試算表
+      store.remove(keys.queue);
+      store.removeWithPrefix(keys.monthPrefix);
+    } else {
+      clearProfileStorage(keys);
+    }
+    this.profiles.push({ id, name, url, key });
+    this.#persistProfiles();
+    if (activate) this.switchProfile(id);
+    return id;
+  }
+
+  /** 換成另一位使用者：月曆、待同步變更、薪資設定都換成那位的 */
+  switchProfile(id: string) {
+    const profile = this.profiles.find((item) => item.id === id);
+    if (!profile) return;
+    const changed = id !== this.profileId;
+    this.#epoch++;
+    this.#requestId++;
+    this.#flushing = null;
+    this.syncing = false;
+    this.profileId = id;
+    this.#persistProfiles();
+
+    const keys = this.#keys;
+    const pay = normalizePayData(store.get(keys.pay));
+    this.queue = readQueue(keys);
+    this.months = {};
+    this.payMonths = pay.months;
+    this.customCatalog = pay.catalog;
+    this.payBackend = 'unknown';
+    this.accountBackend = 'unknown';
+    this.loading = '';
+    this.loadError = null;
+    this.syncError = null;
+    this.editing = null;
+    this.payDialogMonth = null;
+    this.categoriesOpen = false;
+    this.settingsOpen = false;
+    this.#lastRefresh = 0;
+    if (changed && this.profiles.length > 1) this.showToast(`換成${profile.name}了`, 'ok');
+    void this.load();
+  }
+
+  /** 從這台裝置移除一位使用者（試算表裡的資料不受影響）；至少要留一位 */
+  removeProfile(id: string) {
+    if (this.profiles.length < 2) return;
+    const index = this.profiles.findIndex((profile) => profile.id === id);
+    if (index < 0) return;
+    clearProfileStorage(keysFor(id));
+    if (id === MAIN_PROFILE) store.remove(KEYS.settings);
+    this.profiles.splice(index, 1);
+    this.#persistProfiles();
+    if (id === this.profileId) this.switchProfile(this.profiles[0].id);
+  }
+
+  // ---- 管理員：在試算表建立使用者 ----
+
+  /** 建立新的使用者（後端會開一份新的試算表），並加到這台裝置但不切換過去 */
+  async createRemoteUser(name: string): Promise<{ user: RemoteUser } | { error: string }> {
+    name = name.trim();
+    if (!name) return { error: '請輸入名稱' };
+    if (name.length > MAX_PROFILE_NAME) return { error: `名稱最多 ${MAX_PROFILE_NAME} 個字` };
+    const settings = this.settings;
+    if (!settings) return { error: '尚未設定連線' };
+    try {
+      const user = await callApi<RemoteUser>(settings, 'createUser', { name });
+      this.addRemoteUser(user, settings.url);
+      return { user };
+    } catch (error) {
+      return { error: asApiError(error).message };
+    }
+  }
+
+  async listRemoteUsers(): Promise<{ users: RemoteUser[] } | { error: string }> {
+    const settings = this.settings;
+    if (!settings) return { error: '尚未設定連線' };
+    try {
+      return { users: await callApi<RemoteUser[]>(settings, 'listUsers', {}) };
+    } catch (error) {
+      return { error: asApiError(error).message };
+    }
+  }
+
+  /** 把試算表裡的使用者加到這台裝置；同一個後端網址，換成那位的密鑰 */
+  addRemoteUser(user: RemoteUser, url = this.settings?.url ?? '') {
+    if (!url || this.hasProfile(url, user.key)) return;
+    this.#addProfile(user.name, url, user.key, { activate: false });
   }
 
   // ---- 提示貼紙 ----

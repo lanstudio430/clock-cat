@@ -24,6 +24,8 @@ const SERVER_ERRORS: Record<string, [ErrorKind, string]> = {
   unauthorized: ['config', '密鑰不正確'],
   not_configured: ['config', '後端未設定密鑰'],
   bad_request: ['config', '請求格式有誤'],
+  forbidden: ['config', '沒有權限'],
+  no_sheet: ['config', '打不開試算表'],
 };
 
 const ACCESS_HINT = '請確認網址正確，且部署的存取權限是「任何人」';

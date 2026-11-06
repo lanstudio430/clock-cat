@@ -20,6 +20,24 @@ export interface Settings {
   key: string;
 }
 
+/** 這台裝置上的一位使用者：各自的試算表連線、快取與待同步變更 */
+export interface Profile extends Settings {
+  id: string;
+  name: string;
+  /** 密鑰是不是管理員密鑰（可以在 App 裡建立使用者）；還沒問過後端時沒有這個欄位 */
+  admin?: boolean;
+}
+
+/** 管理員從後端看到的使用者 */
+export interface RemoteUser {
+  name: string;
+  key: string;
+  /** 這位使用者的試算表網址 */
+  url: string;
+  /** 只有剛建立時有：試算表放在哪個資料夾；null 代表沒能移過去，留在雲端硬碟根目錄 */
+  folder?: string | null;
+}
+
 export type JobType = 'fulltime' | 'parttime';
 /** 時薪由本薪換算時的進位方式：不進位、四捨五入到整數、無條件進位到整數 */
 export type Rounding = 'none' | 'round' | 'ceil';

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createBackend } from '../helpers/backend';
+import { createBackend, TEST_KEY } from '../helpers/backend';
 
 const entry = (over: Record<string, unknown> = {}) => ({
   date: '2026-11-02',
@@ -392,5 +392,112 @@ describe('Code.gs 舊版班表升級', () => {
     sheet.rows.push(['日期', '上班', '下班', '假別']);
     expect(backend.call<any>('getMonths', ['2026-11'])['2026-11'].entries).toEqual([]);
     expect(sheet.rows[0][3]).toBe('實際上班');
+  });
+});
+
+describe('Code.gs 多使用者', () => {
+  const USER_KEY = 'u'.repeat(32);
+  const OTHER_ID = 'OTHER_SPREADSHEET_ID_0001';
+  const setup = () => {
+    const backend = createBackend();
+    const post = (body: Record<string, unknown>) => JSON.parse(backend.handle(JSON.stringify(body)));
+    const users = (rows: string[][]) => {
+      backend.mock.globals.SpreadsheetApp.getActiveSpreadsheet().insertSheet('使用者').rows.push(['名稱', '密鑰', '試算表'], ...rows);
+    };
+    return { backend, post, users };
+  };
+  const months = { action: 'getMonths', months: ['2026-11'] };
+  const dayOff = { action: 'saveEntry', entry: entry({ dayType: '例假' }) };
+
+  it('管理員密鑰讀寫主控試算表，使用者密鑰讀寫自己的試算表', () => {
+    const { backend, post, users } = setup();
+    const other = backend.mock.addSpreadsheet(OTHER_ID);
+    users([['小華', USER_KEY, OTHER_ID]]);
+
+    expect(post({ key: USER_KEY, ...dayOff }).ok).toBe(true);
+    expect(other.sheets['班表'].rows.slice(1)).toEqual([['2026-11-02', '', '', '', '', '例假']]);
+    expect(backend.shiftRows()).toEqual([]);
+    expect(post({ key: TEST_KEY, ...months }).data['2026-11'].entries).toEqual([]);
+    expect(post({ key: USER_KEY, ...months }).data['2026-11'].entries).toHaveLength(1);
+
+    expect(post({ key: TEST_KEY, action: 'getAccount' }).data).toEqual({ name: null, admin: true });
+    expect(post({ key: USER_KEY, action: 'getAccount' }).data).toEqual({ name: '小華', admin: false });
+  });
+
+  it('試算表欄可以貼整個網址', () => {
+    const { backend, post, users } = setup();
+    backend.mock.addSpreadsheet(OTHER_ID);
+    users([['小華', USER_KEY, `https://docs.google.com/spreadsheets/d/${OTHER_ID}/edit#gid=0`]]);
+    expect(post({ key: USER_KEY, ...months }).ok).toBe(true);
+  });
+
+  it('空白或太短的密鑰、不存在的密鑰都不算', () => {
+    const { backend, post, users } = setup();
+    backend.mock.addSpreadsheet(OTHER_ID);
+    users([['空白', '', OTHER_ID], ['太短', 'short', OTHER_ID], ['小華', USER_KEY, OTHER_ID]]);
+    for (const key of ['', 'short', 'x'.repeat(32), USER_KEY.slice(1), null]) {
+      expect(post({ key, ...months }).code).toBe('unauthorized');
+    }
+  });
+
+  it('試算表打不開時說明原因', () => {
+    const { post, users } = setup();
+    users([['小華', USER_KEY, 'MISSING_SPREADSHEET_ID_00'], ['亂填', 'v'.repeat(32), 'abc']]);
+    expect(post({ key: USER_KEY, ...months })).toMatchObject({ ok: false, code: 'no_sheet' });
+    expect(post({ key: 'v'.repeat(32), ...months }).code).toBe('no_sheet');
+  });
+
+  it('只有管理員能列出與建立使用者', () => {
+    const { backend, post, users } = setup();
+    backend.mock.addSpreadsheet(OTHER_ID);
+    users([['小華', USER_KEY, OTHER_ID]]);
+    expect(post({ key: USER_KEY, action: 'listUsers' }).code).toBe('forbidden');
+    expect(post({ key: USER_KEY, action: 'createUser', name: '偷建' }).code).toBe('forbidden');
+    expect(Object.keys(backend.mock.spreadsheets)).toHaveLength(2);
+
+    const created = post({ key: TEST_KEY, action: 'createUser', name: ' 阿明 ' }).data;
+    expect(created.name).toBe('阿明');
+    expect(created.key).toMatch(/^[0-9a-f]{64}$/);
+    const id = created.url.match(/\/d\/([^/]+)\//)[1];
+    expect(backend.mock.spreadsheets[id].title).toBe('工時貓 - 阿明');
+    // 放在主控試算表的資料夾，不是雲端硬碟根目錄
+    expect(created.folder).toBe('工時貓');
+    expect(backend.mock.spreadsheets[id].folder).toBe('工時貓');
+    expect(post({ key: TEST_KEY, action: 'listUsers' }).data).toEqual([
+      { name: '小華', key: USER_KEY, url: `https://docs.google.com/spreadsheets/d/${OTHER_ID}/edit` },
+      { name: '阿明', key: created.key, url: created.url },
+    ]);
+
+    // 新使用者馬上能用，資料寫在新的試算表
+    expect(post({ key: created.key, ...dayOff }).ok).toBe(true);
+    expect(backend.mock.spreadsheets[id].sheets['班表'].rows).toHaveLength(2);
+
+    for (const name of ['', '   ', 'x'.repeat(21), 123, null]) {
+      expect(post({ key: TEST_KEY, action: 'createUser', name }).code).toBe('rejected');
+    }
+  });
+
+  it('沒辦法移到資料夾時，留在根目錄，使用者照樣建立', () => {
+    const { backend, post } = setup();
+    backend.mock.failMoves(true);
+    const created = post({ key: TEST_KEY, action: 'createUser', name: '阿明' }).data;
+    expect(created.folder).toBeNull();
+    const id = created.url.match(/\/d\/([^/]+)\//)[1];
+    expect(backend.mock.spreadsheets[id].folder).toBe('我的雲端硬碟');
+    expect(post({ key: created.key, ...dayOff }).ok).toBe(true);
+  });
+
+  it('setupUsers 建立使用者工作表並補上空白的密鑰', () => {
+    const { backend, users } = setup();
+    users([['小華', '', OTHER_ID], ['沒填試算表', '', ''], ['已有', USER_KEY, OTHER_ID]]);
+    backend.context.setupUsers();
+    const rows = backend.mock.sheets['使用者'].rows.slice(1);
+    expect(rows[0][1]).toMatch(/^[0-9a-f]{64}$/);
+    expect(rows[1][1]).toBe('');
+    expect(rows[2][1]).toBe(USER_KEY);
+
+    const fresh = createBackend();
+    fresh.context.setupUsers();
+    expect(fresh.mock.sheets['使用者'].rows[0]).toEqual(['名稱', '密鑰', '試算表']);
   });
 });

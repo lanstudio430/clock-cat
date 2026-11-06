@@ -18,7 +18,10 @@ export interface Net {
   legacyBackend: boolean;
 }
 
-type Pair = [number, number | null] | null;
+/** 舊後端不認得的動作：薪資設定與多使用者 */
+const LEGACY_UNKNOWN = ['getPayData', 'savePayCatalog', 'savePayMonth', 'getAccount', 'listUsers', 'createUser'];
+
+type Pair =[number, number | null] | null;
 export interface EditOptions {
   planned?: Pair;
   actual?: Pair;
@@ -146,7 +149,7 @@ export const test = base.extend<Fixtures>({
           net.tamper = null;
         }
         const headers = { 'access-control-allow-origin': '*' };
-        if (net.legacyBackend && ['getPayData', 'savePayCatalog', 'savePayMonth'].includes(body.action)) {
+        if (net.legacyBackend && LEGACY_UNKNOWN.includes(body.action)) {
           const unsupported = { ok: false, code: 'bad_request', error: `不支援的操作：${body.action}` };
           return await route.fulfill({ status: 200, contentType: 'application/json', headers, body: JSON.stringify(unsupported) });
         }

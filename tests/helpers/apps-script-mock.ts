@@ -60,19 +60,73 @@ export function createMock() {
     };
   }
 
-  const spreadsheet = {
-    getSheetByName: (name: string) => sheets[name] ?? null,
-    insertSheet: (name: string) => (sheets[name] = makeSheet(name)),
+  function makeSpreadsheet(id: string, title: string, sheets: Record<string, MockSheet> = {}) {
+    return {
+      id,
+      title,
+      sheets,
+      /** 在雲端硬碟的哪個資料夾；新建的試算表在根目錄 */
+      folder: '我的雲端硬碟',
+      getId: () => id,
+      getSheetByName: (name: string) => sheets[name] ?? null,
+      insertSheet: (name: string) => (sheets[name] = makeSheet(name)),
+      toast() {},
+    };
+  }
+  type MockSpreadsheet = ReturnType<typeof makeSpreadsheet>;
+
+  // 主控試算表（Apps Script 綁定的那份）；其他使用者的試算表用 ID 開
+  const MAIN_ID = 'MAIN_SPREADSHEET_ID_0000';
+  const spreadsheet = makeSpreadsheet(MAIN_ID, '工時貓', sheets);
+  spreadsheet.folder = '工時貓';
+  const spreadsheets: Record<string, MockSpreadsheet> = { [MAIN_ID]: spreadsheet };
+  let created = 0;
+  let moveFails = false;
+
+  // 只模擬用到的 DriveApp：查檔案所在的資料夾、移動檔案
+  const driveFile = (id: string) => {
+    const file = spreadsheets[id];
+    if (!file) throw new Error('No item with the given ID could be found');
+    return {
+      getParents: () => {
+        let done = false;
+        return { hasNext: () => !done, next: () => ((done = true), { name: file.folder, getName: () => file.folder }) };
+      },
+      moveTo(folder: { name: string }) {
+        if (moveFails) throw new Error('Access denied: DriveApp');
+        file.folder = folder.name;
+      },
+    };
   };
 
   return {
     sheets,
     props,
+    spreadsheets,
+    /** 模擬沒有資料夾編輯權，移動檔案失敗 */
+    failMoves(value: boolean) {
+      moveFails = value;
+    },
+    /** 新增一份可以用 ID 打開的試算表 */
+    addSpreadsheet(id: string) {
+      return (spreadsheets[id] = makeSpreadsheet(id, id));
+    },
     failLocks(value: boolean) {
       lockFails = value;
     },
     globals: {
-      SpreadsheetApp: { getActiveSpreadsheet: () => spreadsheet },
+      DriveApp: { getFileById: driveFile },
+      SpreadsheetApp: {
+        getActiveSpreadsheet: () => spreadsheet,
+        openById: (id: string) => {
+          if (!spreadsheets[id]) throw new Error('Unexpected error while getting the method or property openById');
+          return spreadsheets[id];
+        },
+        create: (title: string) => {
+          const id = `CREATED_SPREADSHEET_${String(++created).padStart(4, '0')}`;
+          return (spreadsheets[id] = makeSpreadsheet(id, title));
+        },
+      },
       LockService: {
         getScriptLock: () => ({
           waitLock() {

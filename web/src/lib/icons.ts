@@ -33,11 +33,14 @@ import trashCan from '@fortawesome/fontawesome-free/svgs/regular/trash-can.svg?r
 import triangleExclamation from '@fortawesome/fontawesome-free/svgs/solid/triangle-exclamation.svg?raw';
 import trophy from '@fortawesome/fontawesome-free/svgs/solid/trophy.svg?raw';
 import xmark from '@fortawesome/fontawesome-free/svgs/solid/xmark.svg?raw';
+import externalLink from '@fortawesome/fontawesome-free/svgs/solid/arrow-up-right-from-square.svg?raw';
+import userPlus from '@fortawesome/fontawesome-free/svgs/solid/user-plus.svg?raw';
+import users from '@fortawesome/fontawesome-free/svgs/solid/users.svg?raw';
 
 export const icons = {
-  arrowRight, calendarCheck, check, chevronDown, chevronLeft, chevronRight, circleExclamation, circleInfo, circleNotch, clock, cloudBolt, coins, droplet,
-  eraser, eye, eyeSlash, flag, gear, heart, key, moon, mugHot, paw, minus, pen, penNib, pencil, plus, rotateRight, sackDollar,
-  trashCan, triangleExclamation, trophy, xmark,
+  arrowRight, calendarCheck, check, chevronDown, chevronLeft, chevronRight, circleExclamation, circleInfo, circleNotch, clock, cloudBolt, coins,
+  droplet, eraser, externalLink, eye, eyeSlash, flag, gear, heart, key, moon, mugHot, paw, minus, pen, penNib, pencil, plus, rotateRight, sackDollar,
+  trashCan, triangleExclamation, trophy, userPlus, users, xmark,
 };
 
 export type IconName = keyof typeof icons;

@@ -26,7 +26,7 @@ test.describe('第一次使用', () => {
     await key.fill('   ');
     await submit.click();
     await expect(error).toHaveText('請輸入密鑰');
-    expect(await page.evaluate(() => localStorage.getItem('clockcat:settings'))).toBeNull();
+    expect(await page.evaluate(() => localStorage.getItem('clockcat:profiles'))).toBeNull();
 
     // 密鑰可以切換顯示
     await expect(key).toHaveAttribute('type', 'password');
@@ -37,9 +37,9 @@ test.describe('第一次使用', () => {
     await submit.click();
     await expect(dialog).toBeHidden();
     await expect(app.stamp).toHaveText('已同步');
-    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('clockcat:settings')!))).toEqual({
-      url: 'https://script.google.com/macros/s/X/exec',
-      key: 'test-key',
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('clockcat:profiles')!))).toEqual({
+      active: 'main',
+      list: [{ id: 'main', name: '我', url: 'https://script.google.com/macros/s/X/exec', key: 'test-key', admin: true }],
     });
     await expect(app.day(11, 2)).toBeEnabled();
   });

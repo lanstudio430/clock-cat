@@ -153,7 +153,7 @@ test('換成另一份試算表時，清掉沒送出的變更', async ({ app, bac
   await expect(app.stamp).toHaveText('已同步');
   expect(await app.queue()).toEqual([]);
   expect(backend.monthRows()).toEqual([]);
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('clockcat:settings')!))).toEqual({
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('clockcat:profiles')!).list[0])).toMatchObject({
     url: 'https://script.google.com/macros/s/OTHER/exec',
     key: 'test-key',
   });

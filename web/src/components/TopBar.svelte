@@ -3,6 +3,7 @@
   import mascot from '../assets/mascot.webp';
   import { app } from '../lib/app-state.svelte';
   import Icon from './Icon.svelte';
+  import UserMenu from './UserMenu.svelte';
 
   let { children }: { children?: Snippet } = $props();
   const YEAR_RANGE = 5;
@@ -26,9 +27,14 @@
     <button type="button" class="square press today" aria-label="今天" title="今天" onclick={() => app.goToday()}>
       <Icon name="calendarCheck" />
     </button>
-    <button type="button" class="square press" aria-label="連線設定" title="連線設定" onclick={() => app.openSettings()}>
-      <Icon name="gear" />
-    </button>
+    {#if app.profiles.length > 1 && app.profile}
+      <!-- 有好幾位使用者時，顯示目前是誰；點開直接切換 -->
+      <UserMenu />
+    {:else}
+      <button type="button" class="square press" aria-label="使用者與連線設定" title="使用者與連線設定" onclick={() => app.openSettings()}>
+        <Icon name="gear" />
+      </button>
+    {/if}
   </div>
 </div>
 

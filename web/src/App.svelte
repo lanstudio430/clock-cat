@@ -101,7 +101,7 @@
   .desktop header {
     padding: 0;
   }
-  .desktop header :global(.strip) {
+  .desktop header :global(.months) {
     flex: 1;
     min-width: 0;
     margin: 0 12px;

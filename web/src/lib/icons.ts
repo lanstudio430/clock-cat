@@ -3,6 +3,8 @@ import arrowRight from '@fortawesome/fontawesome-free/svgs/solid/arrow-right.svg
 import calendarCheck from '@fortawesome/fontawesome-free/svgs/regular/calendar-check.svg?raw';
 import check from '@fortawesome/fontawesome-free/svgs/solid/check.svg?raw';
 import chevronDown from '@fortawesome/fontawesome-free/svgs/solid/chevron-down.svg?raw';
+import chevronLeft from '@fortawesome/fontawesome-free/svgs/solid/chevron-left.svg?raw';
+import chevronRight from '@fortawesome/fontawesome-free/svgs/solid/chevron-right.svg?raw';
 import circleExclamation from '@fortawesome/fontawesome-free/svgs/solid/circle-exclamation.svg?raw';
 import circleNotch from '@fortawesome/fontawesome-free/svgs/solid/circle-notch.svg?raw';
 import clock from '@fortawesome/fontawesome-free/svgs/regular/clock.svg?raw';
@@ -33,7 +35,7 @@ import trophy from '@fortawesome/fontawesome-free/svgs/solid/trophy.svg?raw';
 import xmark from '@fortawesome/fontawesome-free/svgs/solid/xmark.svg?raw';
 
 export const icons = {
-  arrowRight, calendarCheck, check, chevronDown, circleExclamation, circleInfo, circleNotch, clock, cloudBolt, coins, droplet,
+  arrowRight, calendarCheck, check, chevronDown, chevronLeft, chevronRight, circleExclamation, circleInfo, circleNotch, clock, cloudBolt, coins, droplet,
   eraser, eye, eyeSlash, flag, gear, heart, key, moon, mugHot, paw, minus, pen, penNib, pencil, plus, rotateRight, sackDollar,
   trashCan, triangleExclamation, trophy, xmark,
 };

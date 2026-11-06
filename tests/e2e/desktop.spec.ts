@@ -55,3 +55,78 @@ test('桌面版：薪資卡在日曆下方，設定視窗在視窗高度內可�
   // 6 小時 − 應上班 4 小時 = 加班 2 小時 → 2 × 150 × 1.34 = 402；36,000 + 402 + 2,400 − 900 − 福利金 0.5%（180）= 37,722
   await expect(page.getByTestId('net-pay')).toHaveText('NT$ 37,722');
 });
+
+test.describe('桌面版月份列', () => {
+  const strip = (page: import('@playwright/test').Page) => page.getByRole('navigation', { name: '月份' });
+  const scrollLeft = (page: import('@playwright/test').Page) => strip(page).evaluate((node) => node.scrollLeft);
+
+  test('左右箭頭一次換一個月，跨年也可以', async ({ app, page }) => {
+    await app.open();
+    await page.getByRole('button', { name: '上個月' }).click();
+    await expect(page.getByRole('button', { name: '2026 年 10 月' })).toHaveAttribute('aria-current', 'date');
+    for (let i = 0; i < 10; i++) await page.getByRole('button', { name: '下個月' }).click();
+    await expect(page.getByRole('button', { name: '2027 年 8 月' })).toHaveAttribute('aria-current', 'date');
+    await expect(page.getByLabel('年份')).toHaveValue('2027');
+  });
+
+  test('滑鼠滾輪在月份列上左右捲動，可以點到前面的月份', async ({ app, page }) => {
+    await app.open();
+    const far = page.getByRole('button', { name: '2025 年 11 月' }); // 目前選中的往前 12 個月，一開始在畫面外
+    await expect(far).not.toBeInViewport();
+
+    const box = (await strip(page).boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    const before = await scrollLeft(page);
+    await page.mouse.wheel(0, -3000); // 一般滾輪是上下，這裡要變成往左
+    await expect.poll(() => scrollLeft(page)).toBeLessThan(before);
+    await expect(far).toBeInViewport();
+    await far.click();
+    await expect(page.getByLabel('年份')).toHaveValue('2025');
+    await expect(page.getByRole('button', { name: '2025 年 11 月' })).toHaveAttribute('aria-current', 'date');
+  });
+
+  test('按住滑鼠拖曳也能捲動，拖完不會誤點到月份', async ({ app, page }) => {
+    await app.open();
+    const box = (await strip(page).boundingBox())!;
+    const y = box.y + box.height / 2;
+    const before = await scrollLeft(page);
+    await page.mouse.move(box.x + 100, y);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 300, y, { steps: 8 });
+    await page.mouse.up();
+
+    await expect.poll(() => scrollLeft(page)).toBeLessThan(before); // 往右拖 = 內容往右 = 看到前面的月份
+    await expect(page.getByRole('button', { name: '2026 年 11 月' })).toHaveAttribute('aria-current', 'date'); // 沒有因為放開滑鼠換月份
+
+    // 沒有拖曳的一般點擊照常運作
+    await page.getByRole('button', { name: '2026 年 12 月' }).click();
+    await expect(page.getByRole('button', { name: '2026 年 12 月' })).toHaveAttribute('aria-current', 'date');
+  });
+});
+
+test('桌面版：點月份後，選中的月份一直留在月份列的可見範圍內', async ({ app, page }) => {
+  await app.open();
+  const strip = page.getByRole('navigation', { name: '月份' });
+  const visible = async (name: string) => {
+    const box = (await page.getByRole('button', { name }).boundingBox())!;
+    const bar = (await strip.boundingBox())!;
+    return box.x >= bar.x - 1 && box.x + box.width <= bar.x + bar.width + 1;
+  };
+  const centerOffset = async (name: string) => {
+    const box = (await page.getByRole('button', { name }).boundingBox())!;
+    const bar = (await strip.boundingBox())!;
+    return box.x + box.width / 2 - (bar.x + bar.width / 2);
+  };
+  for (const [name, selected] of [['2027 年 3 月', '2027 年 3 月'], ['2026 年 12 月', '2026 年 12 月'], ['2027 年 1 月', '2027 年 1 月']]) {
+    await page.getByRole('button', { name }).click();
+    await expect(page.getByRole('button', { name: selected })).toHaveAttribute('aria-current', 'date');
+    await page.waitForTimeout(700); // 等平滑捲動結束
+    expect(await visible(selected)).toBe(true);
+    expect(Math.abs(await centerOffset(selected))).toBeLessThan(30); // 而且捲到月份列的正中間
+  }
+  for (let i = 0; i < 6; i++) {
+    await page.getByRole('button', { name: '上個月' }).click();
+    await page.waitForTimeout(500);
+  }
+  expect(await visible('2026 年 7 月')).toBe(true);
+});

@@ -43,8 +43,11 @@ test('有實際顯示實際、沒實際顯示原定，週合計跟著變', async
   await app.edit(11, 4, { actual: null });
   expect([await app.label(11, 4), (await app.weekTotals())[1]]).toEqual(['原定 09 至 18', '49.25h']);
 
-  const color = await app.day(11, 3).locator('.time span').first().evaluate((n) => getComputedStyle(n).color);
-  expect(color).toBe('rgb(185, 53, 45)');
+  // 有實際時間：深綠色；只有原定：紅色
+  const color = (date: number) => app.day(11, date).locator('.time span').first().evaluate((n) => getComputedStyle(n).color);
+  expect(await color(3)).toBe('rgb(23, 99, 58)');
+  expect(await color(5)).toBe('rgb(23, 99, 58)');
+  expect(await color(4)).toBe('rgb(185, 53, 45)');
 
   await app.edit(11, 8, { type: '例假' });
   await app.edit(11, 6, { type: '休假' });

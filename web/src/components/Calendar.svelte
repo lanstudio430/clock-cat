@@ -50,7 +50,8 @@
                 <span class="ghost"><Icon name="paw" /></span>
               {/if}
               {#if time}
-                <span class="time"><span>{formatTime(time.start)}</span><span>{formatTime(time.end)}</span></span>
+                <!-- 實際時間用深綠色，一眼看出哪幾天跟原定不一樣 -->
+                <span class="time" class:actual={time.label === '實際'}><span>{formatTime(time.start)}</span><span>{formatTime(time.end)}</span></span>
               {/if}
               {#if entry?.dayType}
                 <span class="badge"><Icon name={DAY_TYPE_ICONS[entry.dayType]} /></span>
@@ -169,6 +170,9 @@
     line-height: 1.1;
     color: var(--time);
     background: linear-gradient(transparent 62%, rgba(186, 211, 245, 0.85) 62%);
+  }
+  .time.actual span {
+    color: var(--time-actual);
   }
   .badge {
     position: absolute;

@@ -2,7 +2,7 @@
   import { fade, fly } from 'svelte/transition';
   import mascot from '../assets/mascot.webp';
   import { app } from '../lib/app-state.svelte';
-  import { HOURS, MINUTES, formatNumber, formatTime, pad, weekdayOf } from '../lib/calc';
+  import { HOURS, MINUTES, formatNumber, formatTime, isLeave, pad, weekdayOf } from '../lib/calc';
   import { DAY_TYPE_ICONS } from '../lib/icons';
   import type { DayType } from '../lib/types';
   import Icon from './Icon.svelte';
@@ -28,15 +28,18 @@
   const pair = $derived(tab === 'planned' ? planned : actual);
   const value = $derived(pair[field]);
   const complete = (p: Pair) => p[0] !== null && p[1] !== null;
-  // 有填實際就以實際為準，否則以原定為準
-  const effective = $derived<Tab | null>(complete(actual) ? 'actual' : complete(planned) ? 'planned' : null);
+  // 有填實際就以實際為準，否則以原定為準；請假的日子原定不算
+  const leave = $derived(isLeave(dayType));
+  const effective = $derived<Tab | null>(complete(actual) ? 'actual' : complete(planned) && !leave ? 'planned' : null);
 
   const TAB_NAMES: Record<Tab, string> = { planned: '原定', actual: '實際' };
-  const TYPES: [DayType, string][] = [['', '無'], ['例假', '例假'], ['休假', '休假'], ['國定假日', '國定假日']];
+  const TYPES: [DayType, string][] = [
+    ['', '無'], ['例假', '例假'], ['休假', '休假'], ['國定假日', '國定假日'], ['事假', '事假'], ['病假', '病假'],
+  ];
 
   const show = (v: number | null) => (v === null ? '--' : formatTime(v));
   function summary(p: Pair, isActual: boolean) {
-    if (p[0] === null && p[1] === null) return isActual ? '未填，以原定為準' : '未填';
+    if (p[0] === null && p[1] === null) return isActual ? (leave ? '未填，整天請假' : '未填，以原定為準') : '未填';
     const text = `${show(p[0])} → ${show(p[1])}`;
     return p[0] !== null && p[1] !== null && p[1] > p[0] ? `${text}・${formatNumber(p[1] - p[0])}h` : text;
   }
@@ -174,6 +177,8 @@
         class="type"
         class:off={type === '例假' || type === '休假'}
         class:holiday={type === '國定假日'}
+        class:personal={type === '事假'}
+        class:sick={type === '病假'}
         aria-checked={dayType === type}
         onclick={() => (dayType = type)}
       >
@@ -470,28 +475,38 @@
     font-weight: 400;
     font-size: 13px;
   }
+  /* 六個假別排成兩列、每列三個一樣寬 */
   .types {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 7px;
     margin-top: 14px;
   }
   .type {
+    min-width: 0;
     height: 44px;
-    padding: 0 12px;
+    padding: 0 6px;
     border: 2px solid var(--ink);
     border-radius: 12px;
     background: var(--card);
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 5px;
     font-size: 15px;
+    white-space: nowrap;
   }
   .type.off {
     background: var(--off);
   }
   .type.holiday {
     background: var(--holiday);
+  }
+  .type.personal {
+    background: var(--personal-leave);
+  }
+  .type.sick {
+    background: var(--sick-leave);
   }
   .type[aria-checked='true'] {
     background: var(--ink);

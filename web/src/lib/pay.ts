@@ -1,6 +1,6 @@
-import { formatNumber, workedHours } from './calc';
+import { formatNumber, isLeave, leaveHours, scheduledHours, workedHours } from './calc';
 import type {
-  Entry, ItemMode, ItemSide, JobType, MonthPay, PayCatalog, PayCategory, PayData, PayItem, Rounding,
+  Entry, ItemMode, ItemSide, JobType, LeaveBasis, MonthPay, PayCatalog, PayCategory, PayData, PayItem, Rounding,
 } from './types';
 
 // ---- 規則常數（勞基法與本專案的簡化規則） ----
@@ -9,6 +9,8 @@ export const DAYS_PER_MONTH = 30;
 export const DAY_HOURS = 8;
 /** 月薪制：超過應上班時數的加班，一律按這個倍率計算（變形工時無法逐日分段） */
 export const OVERTIME_RATE = 1.34;
+/** 正職病假：一年內未超過 30 日的部分工資折半發給，也就是扣一半 */
+export const SICK_LEAVE_DEDUCT_RATE = 0.5;
 export const MAX_MONEY = 10_000_000;
 export const MAX_ITEMS = 20;
 export const MAX_CATEGORIES = 40;
@@ -18,6 +20,11 @@ export const ROUNDINGS: { value: Rounding; label: string }[] = [
   { value: 'none', label: '不進位' },
   { value: 'round', label: '四捨五入' },
   { value: 'ceil', label: '無條件進位' },
+];
+
+export const LEAVE_BASES: { value: LeaveBasis; label: string }[] = [
+  { value: 'eight', label: '每天 8 小時' },
+  { value: 'planned', label: '照原定時數' },
 ];
 
 interface Tier {
@@ -76,7 +83,10 @@ export function defaultCatalog(): PayCatalog {
 }
 
 export function blankMonthPay(): MonthPay {
-  return { version: 1, jobType: 'fulltime', baseSalary: 0, hourlyWage: 0, rounding: 'round', payRounding: 'round', additions: [], deductions: [] };
+  return {
+    version: 1, jobType: 'fulltime', baseSalary: 0, hourlyWage: 0, rounding: 'round', payRounding: 'round', leaveBasis: 'eight',
+    additions: [], deductions: [],
+  };
 }
 
 /** 從常用類別加入：帶入預設的方式與金額，之後每月沿用 */
@@ -152,6 +162,7 @@ export function validateMonthPay(pay: MonthPay): string {
   if (pay.jobType === 'parttime' && !(isMoney(pay.hourlyWage) && pay.hourlyWage > 0)) return '請填時薪';
   if (!ROUNDINGS.some((r) => r.value === pay.rounding)) return '請選擇時薪的進位方式';
   if (!ROUNDINGS.some((r) => r.value === pay.payRounding)) return '請選擇金額的進位方式';
+  if (!LEAVE_BASES.some((b) => b.value === pay.leaveBasis)) return '請選擇請假時數的算法';
   if (pay.additions.length > MAX_ITEMS) return `加項最多 ${MAX_ITEMS} 項`;
   if (pay.deductions.length > MAX_ITEMS) return `扣項最多 ${MAX_ITEMS} 項`;
   for (const [index, item] of pay.additions.entries()) {
@@ -204,6 +215,8 @@ export function normalizeMonthPay(raw: unknown): MonthPay | null {
     hourlyWage: cleanMoney(p.hourlyWage),
     rounding: ROUNDINGS.find((r) => r.value === p.rounding)?.value ?? 'round',
     payRounding: ROUNDINGS.find((r) => r.value === p.payRounding)?.value ?? 'round',
+    // 舊資料沒有這個欄位：用每天 8 小時
+    leaveBasis: LEAVE_BASES.find((b) => b.value === p.leaveBasis)?.value ?? 'eight',
     additions: cleanItems(p.additions),
     deductions: cleanItems(p.deductions),
   };
@@ -307,8 +320,10 @@ export interface PayResult {
   totalHours: number;
   /** 計入 1.34 倍加班費的時數（平日超過應上班時數的部分） */
   overtimeHours: number;
-  /** 還差幾小時才達到應上班時數；沒填應上班時數或已經達到時為 0 */
+  /** 還差幾小時才達到應上班時數（已扣掉請假）；沒填應上班時數或已經達到時為 0 */
   shortfallHours: number;
+  /** 正職事假、病假的時數合計 */
+  leaveHours: number;
   /** 正職沒填應上班時數，無法計算加班費 */
   requiredMissing: boolean;
   /** 加項：本薪或工資、加班費、假日加給，以及自己加的項目 */
@@ -339,9 +354,12 @@ function tierUnits(hours: number, tiers: Tier[]): number {
  * - 平日（沒有假別）與國定假日的時數都算進「平日時數」，超過應上班時數的部分 ×1.34（加班費）；
  * - 國定假日出勤另加發一日工資（8 小時）；超過 8 小時的部分不另算，已經在平日時數裡併入加班費；
  * - 例假出勤加發一日工資，時數不算進平日時數，超過 8 小時的部分每天各自按 ×1.34、×1.67；
- * - 休假（休息日）出勤每天各自按 ×1.34、×1.67、×2.67 分段，時數不算進平日時數。
+ * - 休假（休息日）出勤每天各自按 ×1.34、×1.67、×2.67 分段，時數不算進平日時數；
+ * - 事假、病假（勞工請假規則）：請假時數依設定算（8 或原定時數 − 當天實際上班時數）。
+ *   事假扣 請假時數 × 時薪，病假半薪扣 請假時數 × 時薪 × 0.5，不看整個月有沒有達標；
+ *   請假時數從應上班時數扣掉再比加班，請假不是工作時間，不會變成加班。當天實際上班的時數照平日算。
  *
- * 工讀生：全部時數 × 時薪，不另外加成。
+ * 工讀生：全部時數 × 時薪，不另外加成；請假沒上班就沒有工資。
  */
 export function computePay(settings: MonthPay, entries: Record<string, Entry>, requiredHours: number | null): PayResult {
   const parttime = settings.jobType === 'parttime';
@@ -359,9 +377,16 @@ export function computePay(settings: MonthPay, entries: Record<string, Entry>, r
   let restDays = 0;
   let restHours = 0;
   let restUnits = 0;
+  let personalLeaveHours = 0;
+  let sickLeaveHours = 0;
 
   for (const entry of Object.values(entries)) {
     const hours = workedHours(entry);
+    if (!parttime && isLeave(entry.dayType)) {
+      const leave = leaveHours(entry, settings.leaveBasis);
+      if (entry.dayType === '事假') personalLeaveHours += leave;
+      else sickLeaveHours += leave;
+    }
     if (hours <= 0) continue;
     totalHours += hours;
     if (parttime) continue;
@@ -396,9 +421,11 @@ export function computePay(settings: MonthPay, entries: Record<string, Entry>, r
     wage = money(settings.baseSalary);
     additions.push({ key: 'base', label: '本薪', amount: wage });
 
-    if (requiredHours !== null) {
-      overtimeHours = Math.max(regularHours - requiredHours, 0);
-      shortfallHours = Math.max(requiredHours - regularHours, 0);
+    // 請假的時數已從班表免除：用扣掉請假後的應上班時數來比
+    const scheduled = scheduledHours(requiredHours, personalLeaveHours + sickLeaveHours);
+    if (scheduled !== null) {
+      overtimeHours = Math.max(regularHours - scheduled, 0);
+      shortfallHours = Math.max(scheduled - regularHours, 0);
     }
     if (overtimeHours > 0) {
       additions.push({
@@ -451,7 +478,24 @@ export function computePay(settings: MonthPay, entries: Record<string, Entry>, r
     amount: money(item.mode === 'percent' ? (percentBase * item.value) / 100 : item.value),
   });
   additions.push(...settings.additions.map(toLine('addition')));
-  const deductions = settings.deductions.map(toLine('deduction'));
+  const deductions: PayLine[] = [];
+  if (personalLeaveHours > 0) {
+    deductions.push({
+      key: 'personal-leave',
+      label: '事假扣薪',
+      detail: `${formatNumber(personalLeaveHours)} 小時 × 時薪 ${formatHourly(hourly)}`,
+      amount: money(personalLeaveHours * hourly),
+    });
+  }
+  if (sickLeaveHours > 0) {
+    deductions.push({
+      key: 'sick-leave',
+      label: '病假扣半薪',
+      detail: `${formatNumber(sickLeaveHours)} 小時 × 時薪 ${formatHourly(hourly)} × ${SICK_LEAVE_DEDUCT_RATE}`,
+      amount: money(sickLeaveHours * hourly * SICK_LEAVE_DEDUCT_RATE),
+    });
+  }
+  deductions.push(...settings.deductions.map(toLine('deduction')));
 
   const additionTotal = sumAmounts(additions);
   const deductionTotal = sumAmounts(deductions);
@@ -462,6 +506,7 @@ export function computePay(settings: MonthPay, entries: Record<string, Entry>, r
     totalHours,
     overtimeHours,
     shortfallHours,
+    leaveHours: personalLeaveHours + sickLeaveHours,
     requiredMissing,
     additions,
     deductions,

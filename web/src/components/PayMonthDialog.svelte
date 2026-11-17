@@ -2,7 +2,7 @@
   import { untrack } from 'svelte';
   import { app } from '../lib/app-state.svelte';
     import {
-    DAYS_PER_MONTH, DAY_HOURS, ROUNDINGS, blankMonthPay, draftMonthPay, formatExact, formatMoney, hourlyFromBase, minimumWage,
+    DAYS_PER_MONTH, DAY_HOURS, LEAVE_BASES, ROUNDINGS, blankMonthPay, draftMonthPay, formatExact, formatMoney, hourlyFromBase, minimumWage,
     overtimePreview, resolveMonthPay,
   } from '../lib/pay';
   import type { MonthPay } from '../lib/types';
@@ -143,6 +143,24 @@
     </p>
     <p class="hint">時薪乘出來的加班費、假日加給、工資，以及比例的項目，每一行都用這個方式進位；「不進位」會保留到小數第二位。</p>
   </fieldset>
+
+  {#if draft.jobType === 'fulltime'}
+    <fieldset>
+      <legend>事假、病假一天算幾小時</legend>
+      <div class="choices two" role="radiogroup" aria-label="事假、病假一天算幾小時">
+        {#each LEAVE_BASES as option (option.value)}
+          <button type="button" role="radio" class="choice" aria-checked={draft.leaveBasis === option.value} onclick={() => (draft.leaveBasis = option.value)}>
+            {option.label}
+          </button>
+        {/each}
+      </div>
+      <p class="hint" data-testid="leave-preview">
+        {draft.leaveBasis === 'eight'
+          ? '請假時數 = 8 − 當天實際上班時數'
+          : '請假時數 = 當天原定時數 − 實際上班時數；沒填原定的那天算 8 小時'}
+      </p>
+    </fieldset>
+  {/if}
 
   <PayItemsEditor bind:items={draft.additions} side="addition" categories={additionCategories} onmanage={() => app.openCategories()} />
   <PayItemsEditor bind:items={draft.deductions} side="deduction" categories={deductionCategories} onmanage={() => app.openCategories()} />

@@ -38,6 +38,10 @@
   --off-tag: #ffd2a4;
   --holiday: #fde2df;
   --holiday-tag: #fbbdb8;
+  --personal-leave: #ece5f8;
+  --personal-leave-tag: #d5c8f0;
+  --sick-leave: #dcf1f0;
+  --sick-leave-tag: #b2e0dd;
   --shadow: 3px 3px 0 var(--ink);
   --shadow-sm: 2px 2px 0 var(--ink);
   --safe-bottom: env(safe-area-inset-bottom, 0px);

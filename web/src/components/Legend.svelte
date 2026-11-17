@@ -9,9 +9,11 @@
     <li><span class="dot" style:background="var(--off-tag)"><Icon name="moon" /></span>例假</li>
     <li><span class="dot" style:background="var(--off-tag)"><Icon name="mugHot" /></span>休假</li>
     <li><span class="dot" style:background="var(--holiday-tag)"><Icon name="flag" /></span>國定假日</li>
-    <li><span class="dot today" style:background="var(--sky)"><Icon name="paw" /></span>今天</li>
+    <li><span class="dot" style:background="var(--personal-leave-tag)"><Icon name="fileSignature" /></span>事假</li>
+    <li><span class="dot" style:background="var(--sick-leave-tag)"><Icon name="kitMedical" /></span>病假</li>
+    <li><span class="dot today"><Icon name="paw" /></span>今天</li>
   </ul>
-  <p>紅字是當天的上下班時間；有填實際就顯示實際，沒填就顯示原定。</p>
+  <p>格子裡是當天的上下班時間：深綠色是實際時間，紅字是原定時間。</p>
 </section>
 
 <style>
@@ -45,7 +47,10 @@
     place-items: center;
     font-size: 11px;
   }
+  /* 跟日曆上的今天一樣：珊瑚色框、不填底色 */
   .today {
+    border-color: var(--coral);
+    background: var(--card);
     color: var(--coral);
   }
   p {

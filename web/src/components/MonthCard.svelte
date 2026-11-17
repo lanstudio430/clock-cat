@@ -10,9 +10,12 @@
 
   const total = $derived(app.total);
   const required = $derived(app.requiredHours);
-  const percent = $derived(progressPercent(total, required));
-  const met = $derived(goalMet(total, required));
-  const message = $derived(app.ready ? catMessage(total, required) : '讀取中，稍等一下喵');
+  // 達標、還差幾小時都和「應上班扣掉請假」比
+  const leave = $derived(app.leaveHours);
+  const scheduled = $derived(app.scheduledHours);
+  const percent = $derived(progressPercent(total, scheduled));
+  const met = $derived(goalMet(total, scheduled));
+  const message = $derived(app.ready ? catMessage(total, scheduled) : '讀取中，稍等一下喵');
 
   // 輸入框的文字：使用者正在輸入時不覆蓋，切換月份或還原時才更新
   let text = $state('');
@@ -115,7 +118,10 @@
     {#if error}
       <p class="error" id="required-error" role="alert"><Icon name="circleExclamation" />{error}</p>
     {:else}
-      <p class="stat">已排 <b>{app.ready ? `${formatNumber(total)}h` : '–'}</b></p>
+      <p class="stat">
+        已排 <b>{app.ready ? `${formatNumber(total)}h` : '–'}</b>
+        {#if app.ready && leave > 0}・請假 <b data-testid="leave-hours">{formatNumber(leave)}h</b>{/if}
+      </p>
       <p class="note"><Icon name={met ? 'heart' : 'paw'} />{message}</p>
     {/if}
   </div>

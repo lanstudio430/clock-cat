@@ -5,12 +5,13 @@
   import { DAY_TYPE_ICONS } from '../lib/icons';
   import Icon from './Icon.svelte';
 
-  const SHORT: Record<string, string> = { 例假: '例假', 休假: '休假', 國定假日: '國定' };
-  const KIND: Record<string, string> = { 例假: 'off', 休假: 'off', 國定假日: 'holiday' };
+  const SHORT: Record<string, string> = { 例假: '例假', 休假: '休假', 國定假日: '國定', 事假: '事假', 病假: '病假' };
+  const KIND: Record<string, string> = { 例假: 'off', 休假: 'off', 國定假日: 'holiday', 事假: 'personal', 病假: 'sick' };
 
   const weeks = $derived(app.weeks);
   const total = $derived(app.total);
-  const required = $derived(app.requiredHours);
+  // 加班時數 = 週合計加總 − （應上班 − 請假）
+  const required = $derived(app.scheduledHours);
   // 跟著月份重新計算，App 開著跨過午夜時，切換月份就會更新今天
   const todayIso = $derived.by(() => {
     app.monthKey;
@@ -130,8 +131,15 @@
   .holiday {
     background: var(--holiday);
   }
+  .personal {
+    background: var(--personal-leave);
+  }
+  .sick {
+    background: var(--sick-leave);
+  }
+  /* 今天不填底色，只描一圈珊瑚色，假別的底色照樣看得到 */
   .today {
-    background: rgba(186, 211, 245, 0.28);
+    box-shadow: inset 0 0 0 2px var(--coral);
   }
   .selected {
     background: var(--butter);
@@ -150,7 +158,7 @@
     height: 20px;
     border-radius: 50%;
     border: 2px solid var(--ink);
-    background: var(--sky);
+    background: var(--pink);
     color: var(--ink);
     display: grid;
     place-items: center;
@@ -193,6 +201,14 @@
   .holiday .badge,
   .holiday .tag {
     background: var(--holiday-tag);
+  }
+  .personal .badge,
+  .personal .tag {
+    background: var(--personal-leave-tag);
+  }
+  .sick .badge,
+  .sick .tag {
+    background: var(--sick-leave-tag);
   }
   .tag {
     position: absolute;

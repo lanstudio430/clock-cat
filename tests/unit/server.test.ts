@@ -43,6 +43,16 @@ describe('Code.gs 試算表讀寫', () => {
     expect(() => context.saveEntry(entry({ actualStart: 18, actualEnd: 9 }))).toThrow('實際下班時間需要晚於上班時間');
   });
 
+  it('接受事假、病假', () => {
+    const backend = createBackend();
+    backend.call('saveEntry', entry({ date: '2026-11-03', dayType: '事假' }));
+    backend.call('saveEntry', entry({ date: '2026-11-04', actualStart: 9, actualEnd: 13, dayType: '病假' }));
+    expect(backend.shiftRows()).toEqual([
+      ['2026-11-03', '', '', '', '', '事假'],
+      ['2026-11-04', '', '', '9', '13', '病假'],
+    ]);
+  });
+
   it('同一天只留一列，欄位都存成文字', () => {
     const backend = createBackend();
     backend.call('saveEntry', entry({ plannedStart: 9, plannedEnd: 21.5, actualStart: 9.25, actualEnd: 21.75 }));
@@ -190,6 +200,7 @@ describe('Code.gs 薪資設定', () => {
     hourlyWage: 0,
     rounding: 'round',
     payRounding: 'round',
+    leaveBasis: 'eight',
     additions: [item()],
     deductions: [item({ id: 'd1', name: '勞保費', value: 900 }), item({ id: 'd2', name: '職工福利金', mode: 'percent', value: 0.5, regular: false })],
     ...over,
@@ -263,6 +274,14 @@ describe('Code.gs 薪資設定', () => {
     expect(backend.call<any>('savePayMonth', '2026-12', legacy).payRounding).toBe('round');
   });
 
+  it('請假時數的算法兩種都能存；舊版沒有這個欄位時用每天 8 小時', () => {
+    const backend = createBackend();
+    expect(backend.call<any>('savePayMonth', '2026-11', monthPay({ leaveBasis: 'planned' })).leaveBasis).toBe('planned');
+    const { leaveBasis, ...legacy } = monthPay();
+    expect(leaveBasis).toBe('eight');
+    expect(backend.call<any>('savePayMonth', '2026-12', legacy).leaveBasis).toBe('eight');
+  });
+
   it('金額與名稱會整理：兩位小數、去掉前後空白', () => {
     const saved = createBackend().call<any>('savePayMonth', '2026-11', monthPay({
       baseSalary: 36000.126,
@@ -281,6 +300,7 @@ describe('Code.gs 薪資設定', () => {
     ['進位方式不對', monthPay({ rounding: 'floor' })],
     ['金額進位方式不對', monthPay({ payRounding: 'floor' })],
     ['金額進位方式是數字', monthPay({ payRounding: 1 })],
+    ['請假時數算法不對', monthPay({ leaveBasis: 'ten' })],
     ['本薪是負數', monthPay({ baseSalary: -1 })],
     ['本薪太大', monthPay({ baseSalary: 10_000_001 })],
     ['本薪是文字', monthPay({ baseSalary: '36000' })],

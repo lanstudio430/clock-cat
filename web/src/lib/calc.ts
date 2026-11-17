@@ -1,9 +1,12 @@
-import type { Entry } from './types';
+import type { Entry, LeaveBasis } from './types';
 
 export const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日'];
 export const HOURS = Array.from({ length: 16 }, (_, i) => i + 6);
 export const MINUTES: [number, string][] = [[0, '0'], [0.25, '.25'], [0.5, '.5'], [0.75, '.75']];
-export const DAY_TYPES = ['例假', '休假', '國定假日'] as const;
+export const DAY_TYPES = ['例假', '休假', '國定假日', '事假', '病假'] as const;
+
+/** 請假：當天只算實際上班的時數，原定時間不算；沒上班的部分（8 − 實際時數）算請假 */
+export const isLeave = (dayType: string | undefined) => dayType === '事假' || dayType === '病假';
 
 export const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -55,12 +58,13 @@ export interface TimeRange {
 }
 
 // 有填實際時間就用實際，否則用原定；日曆顯示與週合計都以此為準。
+// 請假的日子原定時間沒有上班，只看實際時間。
 // 用 Number.isFinite 判斷：沒填的時間可能是 null 或 undefined。
 export function effectiveTime(entry: Entry | undefined | null): TimeRange | null {
   if (entry && Number.isFinite(entry.actualStart) && Number.isFinite(entry.actualEnd)) {
     return { label: '實際', start: entry.actualStart as number, end: entry.actualEnd as number };
   }
-  if (entry && Number.isFinite(entry.plannedStart) && Number.isFinite(entry.plannedEnd)) {
+  if (entry && !isLeave(entry.dayType) && Number.isFinite(entry.plannedStart) && Number.isFinite(entry.plannedEnd)) {
     return { label: '原定', start: entry.plannedStart as number, end: entry.plannedEnd as number };
   }
   return null;
@@ -69,6 +73,32 @@ export function effectiveTime(entry: Entry | undefined | null): TimeRange | null
 export function workedHours(entry: Entry | undefined | null): number {
   const time = effectiveTime(entry);
   return time ? Math.max(time.end - time.start, 0) : 0;
+}
+
+export const LEAVE_DAY_HOURS = 8;
+
+/**
+ * 事假、病假這天請了幾小時。
+ * eight：8 − 實際上班時數；planned：當天原定時數 − 實際上班時數（沒填原定時用 8）。
+ */
+export function leaveHours(entry: Entry | undefined | null, basis: LeaveBasis): number {
+  if (!entry || !isLeave(entry.dayType)) return 0;
+  const planned =
+    Number.isFinite(entry.plannedStart) && Number.isFinite(entry.plannedEnd)
+      ? Math.max((entry.plannedEnd as number) - (entry.plannedStart as number), 0)
+      : null;
+  const scheduled = basis === 'planned' && planned !== null ? planned : LEAVE_DAY_HOURS;
+  return Math.max(scheduled - workedHours(entry), 0);
+}
+
+/** 一個月的請假時數 */
+export function monthLeaveHours(entries: Record<string, Entry>, basis: LeaveBasis): number {
+  return Object.values(entries).reduce((sum, entry) => sum + leaveHours(entry, basis), 0);
+}
+
+/** 扣掉請假之後，這個月還要上班的時數；沒填應上班時數回傳 null */
+export function scheduledHours(required: number | null, leave: number): number | null {
+  return required === null ? null : Math.max(required - leave, 0);
 }
 
 export function formatNumber(value: number): string {

@@ -1,5 +1,7 @@
 import { ApiError, callApi } from './api';
-import { buildWeeks, formatNumber, goalMet, monthKeyOf, monthTotal, shiftMonthKey, validateEntry, workedHours } from './calc';
+import {
+  buildWeeks, formatNumber, goalMet, monthKeyOf, monthLeaveHours, monthTotal, scheduledHours, shiftMonthKey, validateEntry, workedHours,
+} from './calc';
 import { applyOp, describeOp, fromServer, opMonth, type ServerMonth } from './ops';
 import {
   computePay, defaultCatalog, normalizeCatalog, normalizeMonthPay, normalizePayData, resolveMonthPay, validateCatalog,
@@ -149,6 +151,14 @@ export class AppState {
   }
   get total() {
     return monthTotal(this.weeks);
+  }
+  /** 這個月事假、病假的時數；一天算幾小時跟著這個月的薪資設定，沒設定薪資時每天 8 小時 */
+  get leaveHours() {
+    return monthLeaveHours(this.entries, this.payResolved?.pay.leaveBasis ?? 'eight');
+  }
+  /** 應上班時數扣掉請假：達標、還差幾小時、加班時數都和這個比 */
+  get scheduledHours() {
+    return scheduledHours(this.requiredHours, this.leaveHours);
   }
   get catalog(): PayCatalog {
     return this.customCatalog ?? DEFAULT_CATALOG;
@@ -336,14 +346,14 @@ export class AppState {
     const key = opMonth(op)!;
     this.#ensure(key);
     const data = this.months[key];
-    const metBefore = key === this.monthKey && goalMet(this.total, this.requiredHours);
+    const metBefore = key === this.monthKey && goalMet(this.total, this.scheduledHours);
     if (data) {
       applyOp(data, op);
       this.#putMonth(key, data);
     }
     this.queue.push(op);
     this.#persistQueue();
-    if (key === this.monthKey && !metBefore && goalMet(this.total, this.requiredHours)) this.celebrate++;
+    if (key === this.monthKey && !metBefore && goalMet(this.total, this.scheduledHours)) this.celebrate++;
     void this.flushQueue();
   }
 

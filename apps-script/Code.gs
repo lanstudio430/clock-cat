@@ -2,7 +2,7 @@ var SHIFT_SHEET = '班表';
 var SHIFT_HEADERS = ['日期', '原定上班', '原定下班', '實際上班', '實際下班', '假別'];
 var MONTH_SHEET = '月設定';
 var MONTH_HEADERS = ['月份', '應上班時數'];
-var DAY_TYPES = ['例假', '休假', '國定假日'];
+var DAY_TYPES = ['例假', '休假', '國定假日', '事假', '病假'];
 var EARLIEST_TIME = 6;
 var LATEST_TIME = 21.75;
 var MAX_MONTH_HOURS = 744;
@@ -14,6 +14,7 @@ var PAY_CATALOG_KEY = 'catalog';
 var PAY_MONTH_PREFIX = 'month:';
 var JOB_TYPES = ['fulltime', 'parttime'];
 var ROUNDINGS = ['none', 'round', 'ceil'];
+var LEAVE_BASES = ['eight', 'planned'];
 var ITEM_SIDES = ['addition', 'deduction'];
 var ITEM_MODES = ['amount', 'percent'];
 var MAX_MONEY = 10000000;
@@ -517,6 +518,7 @@ function normalizeMonthPay_(pay) {
     hourlyWage: money_(pay.hourlyWage, '時薪'),
     rounding: pay.rounding,
     payRounding: payRounding_(pay.payRounding),
+    leaveBasis: leaveBasis_(pay.leaveBasis),
     additions: items_(pay.additions, '加項'),
     deductions: items_(pay.deductions, '扣項')
   };
@@ -526,6 +528,13 @@ function normalizeMonthPay_(pay) {
 function payRounding_(value) {
   if (value === undefined) return 'round';
   if (ROUNDINGS.indexOf(value) === -1) throw new Error('金額進位方式不正確');
+  return value;
+}
+
+/** 事假、病假一天算幾小時；舊版沒有這個欄位時用每天 8 小時 */
+function leaveBasis_(value) {
+  if (value === undefined) return 'eight';
+  if (LEAVE_BASES.indexOf(value) === -1) throw new Error('請假時數的算法不正確');
   return value;
 }
 

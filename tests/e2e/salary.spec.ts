@@ -426,6 +426,39 @@ test('國定假日、休假、例假的加給', async ({ app, backend, page }) =
   await expect(netPay(page)).toHaveText('NT$ 40,308'); // 36,000 + 754 + 1,200 + 1,200 + 1,154
 });
 
+test('事假不給薪、病假半薪；應上班扣掉請假後多的算加班；請假時數可以照原定', async ({ app, backend, page }) => {
+  backend.call('savePayMonth', '2026-11', monthPay({ additions: [], deductions: [] }));
+  backend.seed([{ date: '2026-11-02', actualStart: 8, actualEnd: 18 }], { '2026-11': 20 });
+  await app.open();
+
+  await app.edit(11, 3, { planned: [9, 18], type: '事假' }); // 原定不算上班，整天事假
+  await app.edit(11, 4, { actual: [9, 13], type: '病假' }); // 上午上班 4 小時，下午病假
+  expect(await app.label(11, 3)).toBe('事假');
+  expect(await app.label(11, 4)).toBe('實際 09 至 13，病假');
+  await expect(app.day(11, 3)).toHaveClass(/\bpersonal\b/);
+  await expect(app.day(11, 4)).toHaveClass(/\bsick\b/);
+  await expect(app.day(11, 3).locator('.tag')).toHaveText('事假');
+
+  // 每天 8 小時：事假 8、病假 8 − 4 = 4，請假 12；應上班 20 − 12 = 8，上班 14 → 加班 6
+  await expect(page.getByTestId('leave-hours')).toHaveText('12h');
+  await expect(page.getByTestId('overtime')).toHaveText('6h'); // 日曆底部
+  await expect(money(page, 'personal-leave')).toHaveText('-NT$ 1,200');
+  await expect(money(page, 'sick-leave')).toHaveText('-NT$ 300'); // 4 × 150 × 0.5
+  await expect(money(page, 'overtime')).toHaveText('NT$ 1,206'); // 6 × 150 × 1.34
+  await expect(netPay(page)).toHaveText('NT$ 35,706');
+
+  // 照原定時數：事假原定 9 小時；病假沒填原定，算 8 − 4 = 4
+  const dialog = await openMonthDialog(page);
+  const basis = dialog.getByRole('radiogroup', { name: '事假、病假一天算幾小時' });
+  await expect(basis.getByRole('radio', { name: '每天 8 小時' })).toHaveAttribute('aria-checked', 'true');
+  await basis.getByRole('radio', { name: '照原定時數' }).click();
+  await save(dialog);
+  await expect(page.getByTestId('leave-hours')).toHaveText('13h');
+  await expect(money(page, 'personal-leave')).toHaveText('-NT$ 1,350');
+  await expect(money(page, 'overtime')).toHaveText('NT$ 1,407'); // 7 × 150 × 1.34
+  await expect.poll(() => JSON.parse(payRow(backend, 'month:2026-11')![1]).leaveBasis).toBe('planned');
+});
+
 test('工讀生：時薪 × 工時，低於基本工資會提醒', async ({ app, backend, page }) => {
   backend.seed([
     { date: '2026-11-02', actualStart: 9, actualEnd: 15 },

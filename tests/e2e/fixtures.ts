@@ -1,5 +1,6 @@
 import { expect, test as base, type Locator, type Page } from '@playwright/test';
 import { createBackend, TEST_KEY, type Backend } from '../helpers/backend';
+import type { DayType } from '../../web/src/lib/types';
 
 export { expect };
 
@@ -25,7 +26,7 @@ type Pair =[number, number | null] | null;
 export interface EditOptions {
   planned?: Pair;
   actual?: Pair;
-  type?: '' | '例假' | '休假' | '國定假日';
+  type?: DayType;
   save?: boolean;
 }
 

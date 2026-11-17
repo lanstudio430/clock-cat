@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  buildWeeks, catMessage, dayLabel, effectiveTime, formatTime, goalMet, monthKeyOf, monthTotal, progressPercent,
-  shiftMonthKey, toIso, validateEntry, workedHours,
+  buildWeeks, catMessage, dayLabel, effectiveTime, formatTime, goalMet, leaveHours, monthKeyOf, monthLeaveHours, monthTotal,
+  progressPercent, scheduledHours, shiftMonthKey, toIso, validateEntry, workedHours,
 } from '../../web/src/lib/calc';
 import { applyOp, describeOp, fromServer, opMonth } from '../../web/src/lib/ops';
 import type { Entry } from '../../web/src/lib/types';
@@ -47,6 +47,25 @@ describe('顯示與計算規則', () => {
     expect(effectiveTime(entry({ plannedStart: 9, plannedEnd: 18 }))).toEqual({ label: '原定', start: 9, end: 18 });
     expect(effectiveTime(entry({ dayType: '例假' }))).toBeNull();
     expect(effectiveTime(undefined)).toBeNull();
+  });
+
+  it('請假時數：每天 8 小時或照原定時數，扣掉實際上班', () => {
+    const sick = entry({ plannedStart: 8, plannedEnd: 18, actualStart: 9, actualEnd: 13, dayType: '病假' });
+    expect(leaveHours(sick, 'eight')).toBe(4);
+    expect(leaveHours(sick, 'planned')).toBe(6);
+    expect(leaveHours(entry({ dayType: '事假' }), 'planned')).toBe(8); // 沒填原定
+    expect(leaveHours(entry({ actualStart: 6, actualEnd: 21, dayType: '事假' }), 'eight')).toBe(0);
+    expect(leaveHours(entry({ dayType: '例假' }), 'eight')).toBe(0);
+    expect(monthLeaveHours({ a: sick, b: entry({ dayType: '事假' }) }, 'eight')).toBe(12);
+    expect(scheduledHours(160, 16)).toBe(144);
+    expect(scheduledHours(4, 8)).toBe(0);
+    expect(scheduledHours(null, 8)).toBeNull();
+  });
+
+  it('請假的日子原定時間不算，只看實際', () => {
+    expect(effectiveTime(entry({ plannedStart: 9, plannedEnd: 18, dayType: '事假' }))).toBeNull();
+    expect(workedHours(entry({ plannedStart: 9, plannedEnd: 18, dayType: '病假' }))).toBe(0);
+    expect(effectiveTime(entry({ plannedStart: 9, plannedEnd: 18, actualStart: 9, actualEnd: 13, dayType: '病假' }))).toEqual({ label: '實際', start: 9, end: 13 });
   });
 
   it('沒填的欄位是 undefined 也不會變成 NaN', () => {

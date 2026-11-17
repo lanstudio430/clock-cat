@@ -178,6 +178,84 @@ describe('正職：例假', () => {
   });
 });
 
+describe('正職：事假、病假', () => {
+  const deduction = (result: ReturnType<typeof computePay>, key: string) => result.deductions.find((l) => l.key === key);
+  /** n 天、每天 10 小時的平日 */
+  const workdays = (n: number) => Array.from({ length: n }, () => day([8, 18]));
+  /** 原定 8–18（10 小時）、實際上班 hours 的請假日 */
+  const leaveDay = (dayType: DayType, hours: [number, number] | null): Entry => ({ ...day(hours, dayType), plannedStart: 8, plannedEnd: 18 });
+
+  it('例子：應上班 160、上班 150、事假 8、病假 8 → 事假、病假照扣，應上班扣掉請假後多的算加班', () => {
+    const result = computePay(pay(), month(...workdays(15), day(null, '事假'), day(null, '病假')), 160);
+    expect(deduction(result, 'personal-leave')!.amount).toBe(8 * 150); // 1,200
+    expect(deduction(result, 'sick-leave')!.amount).toBe(8 * 150 * 0.5); // 600
+    expect(deduction(result, 'sick-leave')!.detail).toBe('8 小時 × 時薪 150 × 0.5');
+    expect(result.leaveHours).toBe(16);
+    expect(result.overtimeHours).toBe(6); // 150 − (160 − 16)
+    expect(line(result, 'overtime')!.amount).toBe(1206); // 6 × 150 × 1.34
+    expect(result.net).toBe(36000 + 1206 - 1800);
+  });
+
+  it('整個月有達標也照扣，請假不會被多做的時數抵掉', () => {
+    const result = computePay(pay(), month(...workdays(2), day(null, '事假')), 20);
+    expect(deduction(result, 'personal-leave')!.amount).toBe(1200);
+    expect(result.overtimeHours).toBe(8); // 20 − (20 − 8)
+  });
+
+  it('請假後還差的時數照樣顯示，不另外扣', () => {
+    const result = computePay(pay(), month(day([8, 18]), day(null, '事假')), 30);
+    expect(result.shortfallHours).toBe(12); // (30 − 8) − 10
+    expect(result.deductions.map((l) => l.key)).toEqual(['personal-leave']);
+  });
+
+  it('請假比應上班時數還多時，應上班算 0', () => {
+    const result = computePay(pay(), month(day([8, 12]), day(null, '事假')), 4);
+    expect(result.overtimeHours).toBe(4);
+    expect(result.shortfallHours).toBe(0);
+  });
+
+  it('每天 8 小時：請假時數 = 8 − 實際上班時數，上班的時數照平日算', () => {
+    const result = computePay(pay(), month(day([9, 13], '事假')), 8);
+    expect(result.totalHours).toBe(4);
+    expect(deduction(result, 'personal-leave')!.amount).toBe(4 * 150);
+    expect(result.overtimeHours).toBe(0); // 應上班 8 − 請假 4 = 4，上班 4
+    expect(result.shortfallHours).toBe(0);
+  });
+
+  it('實際上班滿 8 小時就沒有請假時數', () => {
+    const result = computePay(pay(), month(day([9, 18], '病假')), 20);
+    expect(deduction(result, 'sick-leave')).toBeUndefined();
+    expect(result.shortfallHours).toBe(11);
+  });
+
+  it('原定時間不算上班：只填原定的請假日算整天請假', () => {
+    const result = computePay(pay(), month(day([9, 18], '事假', true)), 8);
+    expect(result.totalHours).toBe(0);
+    expect(deduction(result, 'personal-leave')!.amount).toBe(1200);
+  });
+
+  it('照原定時數：請假時數 = 原定時數 − 實際上班時數；沒填原定算 8 小時', () => {
+    const entries = month(leaveDay('病假', [9, 13]), leaveDay('事假', null), day(null, '事假'));
+    const eight = computePay(pay(), entries, 0);
+    expect(deduction(eight, 'sick-leave')!.amount).toBe(4 * 150 * 0.5); // 8 − 4
+    expect(deduction(eight, 'personal-leave')!.amount).toBe(16 * 150); // 8 + 8
+    const planned = computePay(pay({ leaveBasis: 'planned' }), entries, 0);
+    expect(deduction(planned, 'sick-leave')!.amount).toBe(6 * 150 * 0.5); // 10 − 4
+    expect(deduction(planned, 'personal-leave')!.amount).toBe(18 * 150); // 10 + 8
+  });
+
+  it('沒填應上班時數也照扣', () => {
+    const result = computePay(pay(), month(day(null, '事假'), day(null, '病假')), null);
+    expect(result.deductionTotal).toBe(1200 + 600);
+  });
+
+  it('請假扣薪排在自己加的扣項前面', () => {
+    const result = computePay(pay({ deductions: [item('勞保費', 700)] }), month(day(null, '事假'), day(null, '病假')), 16);
+    expect(result.deductions.map((l) => l.label)).toEqual(['事假扣薪', '病假扣半薪', '勞保費']);
+    expect(result.deductionTotal).toBe(2500);
+  });
+});
+
 describe('工讀生：時薪 × 工時', () => {
   const parttime = (over: Partial<MonthPay> = {}) => pay({ jobType: 'parttime', hourlyWage: 196, baseSalary: 0, ...over });
 
@@ -192,6 +270,14 @@ describe('工讀生：時薪 × 工時', () => {
 
   it('沒有出勤就是 0', () => {
     expect(computePay(parttime(), {}, null).net).toBe(0);
+  });
+
+  it('請假沒上班就沒有工資，也不另外扣；原定時間不算', () => {
+    const entries = month(day([9, 18], '事假', true), day(null, '病假'), day([9, 13], '病假'));
+    const result = computePay(parttime(), entries, null);
+    expect(result.totalHours).toBe(4);
+    expect(result.additions[0].amount).toBe(4 * 196);
+    expect(result.deductions).toEqual([]);
   });
 
   it('時薪有小數時，工資四捨五入到整數元', () => {
@@ -522,6 +608,15 @@ describe('用完整的時薪去乘，乘出來的金額再依設定進位', () =
     expect(preview.raw).toBeCloseTo(1647.0833, 4);
     expect(preview.amount).toBe(1648);
     expect(overtimePreview(pay({ jobType: 'parttime', hourlyWage: 183.5, payRounding: 'none' }), 1.25)).toMatchObject({ rate: 1, amount: 229.38 });
+  });
+
+  it('請假時數的算法要檢查；舊資料沒有這個欄位時每天算 8 小時，之後的月份會沿用', () => {
+    expect(validateMonthPay({ ...pay(), leaveBasis: 'ten' } as unknown as MonthPay)).toBe('請選擇請假時數的算法');
+    const legacy = { version: 1, jobType: 'fulltime', baseSalary: 36000, hourlyWage: 0, rounding: 'round', additions: [], deductions: [] };
+    expect(normalizeMonthPay(legacy)!.leaveBasis).toBe('eight');
+    expect(normalizeMonthPay({ ...legacy, leaveBasis: 'planned' })!.leaveBasis).toBe('planned');
+    expect(blankMonthPay().leaveBasis).toBe('eight');
+    expect(resolveMonthPay({ '2026-11': pay({ leaveBasis: 'planned' }) }, '2026-12')!.pay.leaveBasis).toBe('planned');
   });
 
   it('金額的進位方式要檢查；舊資料沒有這個欄位時視為四捨五入', () => {

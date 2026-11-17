@@ -36,13 +36,17 @@ import xmark from '@fortawesome/fontawesome-free/svgs/solid/xmark.svg?raw';
 import externalLink from '@fortawesome/fontawesome-free/svgs/solid/arrow-up-right-from-square.svg?raw';
 import userPlus from '@fortawesome/fontawesome-free/svgs/solid/user-plus.svg?raw';
 import users from '@fortawesome/fontawesome-free/svgs/solid/users.svg?raw';
+import fileSignature from '@fortawesome/fontawesome-free/svgs/solid/file-signature.svg?raw';
+import kitMedical from '@fortawesome/fontawesome-free/svgs/solid/kit-medical.svg?raw';
 
 export const icons = {
   arrowRight, calendarCheck, check, chevronDown, chevronLeft, chevronRight, circleExclamation, circleInfo, circleNotch, clock, cloudBolt, coins,
-  droplet, eraser, externalLink, eye, eyeSlash, flag, gear, heart, key, moon, mugHot, paw, minus, pen, penNib, pencil, plus, rotateRight, sackDollar,
+  droplet, eraser, externalLink, eye, eyeSlash, fileSignature, flag, gear, heart, key, kitMedical, moon, mugHot, paw, minus, pen, penNib, pencil, plus, rotateRight, sackDollar,
   trashCan, triangleExclamation, trophy, userPlus, users, xmark,
 };
 
 export type IconName = keyof typeof icons;
 
-export const DAY_TYPE_ICONS: Record<string, IconName> = { 例假: 'moon', 休假: 'mugHot', 國定假日: 'flag' };
+export const DAY_TYPE_ICONS: Record<string, IconName> = {
+  例假: 'moon', 休假: 'mugHot', 國定假日: 'flag', 事假: 'fileSignature', 病假: 'kitMedical',
+};

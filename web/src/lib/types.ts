@@ -1,4 +1,4 @@
-export type DayType = '' | '例假' | '休假' | '國定假日';
+export type DayType = '' | '例假' | '休假' | '國定假日' | '事假' | '病假';
 
 /** 一天的紀錄；欄位與 Apps Script 回傳的格式相同，時間以小數小時表示（9.5 = 09:30）。 */
 export interface Entry {
@@ -43,6 +43,7 @@ export interface RemoteUser {
 export type JobType = 'fulltime' | 'parttime';
 /** 時薪由本薪換算時的進位方式：不進位、四捨五入到整數、無條件進位到整數 */
 export type Rounding = 'none' | 'round' | 'ceil';
+export type LeaveBasis = 'eight' | 'planned';
 export type ItemMode = 'amount' | 'percent';
 export type ItemSide = 'addition' | 'deduction';
 
@@ -70,6 +71,8 @@ export interface MonthPay {
   rounding: Rounding;
   /** 卡片上每一行金額（時薪乘出來的加班費、假日加給、工資，以及比例的項目）的進位方式 */
   payRounding: Rounding;
+  /** 事假、病假一天算幾小時：eight = 8 − 實際上班時數；planned = 當天原定時數 − 實際上班時數 */
+  leaveBasis: LeaveBasis;
   additions: PayItem[];
   deductions: PayItem[];
 }
